@@ -2,7 +2,7 @@
 
 These programs replace the standard UNIX commands for working with files: `mv`, `cp`, `rm`, `touch`, `mkdir`. The new utils are designed for interactive use and to prevent frustration and loss of data.
 
-The new utils are `nef` new file, `ned` new directory, `mov`e, `nam`e, `cop`y, `rem`ove and `undo`.
+The new utils are `nef` new file, `ned` new directory, `mov`e, `ren`ame, `cop`y, `del`ete and `undo`.
 
 See [Three letters are too long](#three-letters-are-too-long) for shorter names.
 
@@ -23,11 +23,12 @@ Scenario:
 <!-- prettier-ignore -->
 | coreutils  | human-utils | outcome  |
 | --- | --- | --- |
-| `touch hockey`  | `nef hockey` | <code style="color: green">A root/hockey</code> |
-| `mkdir rocks`<br/>`touch rocks/ruby` | `nef rocks/ruby` | <code style="color: green">A root/rocks/ruby</code>    |
-| `mkdir rocks`<br/>`echo 💎 > rocks/ruby`     | `nef rocks/ruby 💎`     | <code style="color: green">A root/rocks/ruby</code><br />&nbsp;&nbsp;`text: 💎` |
+| `touch hockey`  | `nef hockey` | <code style="color: green">N root/hockey</code> |
+| `mkdir rocks`<br/>`touch rocks/ruby` | `nef rocks/ruby` | <code style="color: green">N root/rocks/ruby</code>    |
+| `mkdir rocks`<br/>`echo 💎 > rocks/ruby`     | `nef rocks/ruby 💎`     | <code style="color: green">N root/rocks/ruby</code><br />&nbsp;&nbsp;`text: 💎` |
+| `mkdir rocks`<br />`cd rocks` | `ned rocks -c` | |
 | `mv rugby dogs` | `mov rugby dogs`  | <code style="color: purple">R rugby -> dogs/rugby</code>  |
-| `mv rugby tennis`  | `nam rugby tennis`<br />`... [y/N]?` <kbd>Enter</kbd> | <code style="color: red">D tennis</code><br /><code style="color: purple">R rugby -> tennis</code> |
+| `mv rugby tennis`  | `ren rugby tennis`<br />`... [y/N]?` <kbd>Enter</kbd> | <code style="color: red">D tennis</code><br /><code style="color: purple">R rugby -> tennis</code> |
 | `mv rugby tennis dogs` | `mov rugby tennis dogs` | <code style="color: purple">R rugby -> dogs/rugby</code><br/><code style="color: purple">R tennis -> dogs/tennis</code> |
 | `mkdir sports`<br/>  `mv rugby tennis sports` | `mov rugby tennis sports` | <code style="color: purple">R rugby -> sports/rugby</code><br/><code style="color: purple">R tennis -> sports/tennis</code> |
 
@@ -41,11 +42,32 @@ Irreversible actions include:
 - overwriting a directory with different files contents
 
 **Do not change behavior based on the current state of the file tree**
-The UNIX `mv a b` command performs a very different operation based on whether `b` is an existing directory or not (a move or a rename with a possible overwrite). In `human-utils` you instead choose which operation to perform (by choosing `mov` or `nam`).
+The UNIX `mv a b` command performs a very different operation based on whether `b` is an existing directory or not (a move or a rename with a possible overwrite). In `human-utils` you instead choose which operation to perform (by choosing `mov` or `ren`).
+
+**Create directories on demand**
+If a directory is needed to perform any command, but it doesn't exist, it will get created. This applies to multiple nested directories as well. The behavior is similar to running the UNIX command `mkdir -p` with the right argument before every operation.
+
+## `undo`
+
+The `undo` command offers to run a reverse of **only** the last performed operation, if it was reversible:
+
+```sh
+$ ren tennis t
+R tennis t
+$ undo
+Run `ren t tennis` [Y/n]? yes
+R t tennis
+$ del tennis
+D tennis
+$ undo
+Cannot undo `del tennis`.
+```
+
+It the last operation was partially irreversible (for example overwriting an existing file), `undo` will only reverse the reversible part.
 
 ## Three letters are too long
 
-You can make aliases to these utils. To avoid unexpected behavior in existing scripts, create the aliases only in interactive sessions.
+You can make aliases to these utils and even shadow existing UNIX commands. To avoid unexpected behavior in existing scripts, create the aliases only in interactive sessions.
 
 In Fish shell this can be accomplished by amending the `fish_greeting` function:
 
@@ -54,8 +76,8 @@ function fish_greeting
     alias nf nef
     alias nd ned
     alias mv mov
-    alias nm nam
+    alias re ren
     alias cp cop
-    alias rm rem
+    alias rm del
 end
 ```

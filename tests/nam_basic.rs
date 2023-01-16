@@ -2,12 +2,12 @@ use anyhow::{ensure, Ok, Result};
 
 mod utils;
 
-use crate::utils::{env, nam, SUCCESS};
+use crate::utils::{env, ren, SUCCESS};
 
 #[test]
 fn renames_file() -> Result<()> {
     let env = env(&["foo"])?;
-    let res = nam().args(&["foo", "bar"]).env(&env).run()?;
+    let res = ren().args(&["foo", "bar"]).env(&env).run()?;
     ensure!(res.output == "\"foo\" -> \"bar\"");
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo"));
@@ -18,7 +18,7 @@ fn renames_file() -> Result<()> {
 #[test]
 fn renames_directory() -> Result<()> {
     let env = env(&["foo/lorem"])?;
-    let res = nam().args(&["foo", "bar"]).env(&env).run()?;
+    let res = ren().args(&["foo", "bar"]).env(&env).run()?;
     ensure!(res.output == "\"foo\" -> \"bar\"");
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo/lorem"));

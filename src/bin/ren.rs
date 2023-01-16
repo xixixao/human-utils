@@ -1,43 +1,44 @@
 use camino::Utf8Path;
 use clap::Parser;
-use human_utils::{confirm_or_exit, message_success, FAILURE, SUCCESS};
+use colored::Colorize;
+use human_utils::{message_success, path_string, FAILURE, SUCCESS};
 
-// TODO: Support `nam . something_else` and `nam something_else .`
+// TODO: Support `ren . something_else` and `ren something_else .`
 
 const DETAILS: &str = "
-As part of `human-utils`, `nam` asks for confirmation if
+As part of `human-utils`, `ren` asks for confirmation if
 a file or directory already exists at <DESTINATION>.
 
-Examples where `nam` differs from `mv`:
+Examples where `ren` differs from `mv`:
 
   Asks for confirmation:
-    `nam a b` where b is an existing file,
-    `nam` will ask for confirmation and then
+    `ren a b` where b is an existing file,
+    `ren` will ask for confirmation and then
     will replace `b` with `a`, while `mv`
     will irreversibly replace `b` with `a`
     without any confirmation.
 
   Always renames:
-    `nam a b` where b is an existing directory,
-    `nam` will ask for confirmation and then
+    `ren a b` where b is an existing directory,
+    `ren` will ask for confirmation and then
     will replace `b` with `a`, while `mv`
     will move `a` into the directory `b`
 
 Other improvements:
   
   Existing location:
-    `nam a a` will return success code 0,
+    `ren a a` will return success code 0,
     while `mv` will return error code 1.
 
   Existing location with different path format:
-    `nam a /foo/a` where `a` is already located at `/foo/a`,
-    `nam` will note that `a` is already located at `/foo/a`
+    `ren a /foo/a` where `a` is already located at `/foo/a`,
+    `ren` will note that `a` is already located at `/foo/a`
     and return success code 0, while `mv` will consider this
     a valid move and `mv -i` will ask for confirmation.
 
 ";
 
-/// `nam`e files and directories
+/// `ren`e files and directories
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 #[clap(after_long_help = DETAILS)]
@@ -50,26 +51,15 @@ struct CLI {
     // #[tested(nam_requires_two_arguments)]
     destination: String,
 
-    /// Never ask for confirmation
-    #[arg(short, long)]
-    // #[tested(nam_force)]
-    force: bool,
-
-    /// Do not print success messages, still prints errors
-    #[arg(short, long)]
-    // #[tested(nam_silent)]
-    silent: bool,
-
-    /// Ask for confirmation, print success messages and errors, but do not perform any changes
-    #[arg(short = 'n', long)]
-    // #[tested(nam_dry_run)]
-    dry_run: bool,
+    #[command(flatten)]
+    options: human_utils::StandardOptions,
 }
 
 fn main() {
     let args = CLI::parse();
     let source = Utf8Path::new(&args.file_or_directory);
     let destination = Utf8Path::new(&args.destination);
+    human_utils::set_color_override(&args.options);
     check_source_exists(&source);
     check_source_already_at_destination(&args, &source, &destination);
     check_destination_exists(&args, &destination);
@@ -109,22 +99,10 @@ fn check_source_already_at_destination(args: &CLI, source: &Utf8Path, destinatio
 
 // #[tested(nam_replace_existing)]
 fn check_destination_exists(args: &CLI, destination: &Utf8Path) {
-    if args.force {
+    if args.options.force {
         return;
     }
-
-    if let Ok(metadata) = destination.symlink_metadata() {
-        let file_type = if metadata.is_dir() {
-            "Directory"
-        } else {
-            "File"
-        };
-        print!(
-            "{} \"{}\" already exists, replace it? [Y/n]",
-            file_type, destination
-        );
-        confirm_or_exit();
-    }
+    human_utils::check_path_exists_and_confirm_or_exit(destination);
 }
 
 // #[tested(nam_basic, nam_replace_existing)]
@@ -136,7 +114,7 @@ fn rename(args: &CLI, from: &Utf8Path, to: &Utf8Path) {
     //             fs::remove_dir(to)?;
     //     }
     // }
-    if args.dry_run {
+    if args.options.dry_run {
         return;
     }
 
@@ -156,8 +134,12 @@ fn rename(args: &CLI, from: &Utf8Path, to: &Utf8Path) {
 fn print_success(args: &CLI) {
     message_success!(
         args,
-        "\"{}\" -> \"{}\"",
-        args.file_or_directory,
-        args.destination
+        "{}",
+        format!(
+            "M {} -> {}",
+            path_string(&args.file_or_directory),
+            path_string(&args.destination)
+        )
+        .bright_blue()
     );
 }

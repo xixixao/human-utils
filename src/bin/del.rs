@@ -3,23 +3,23 @@ use clap::Parser;
 use colored::*;
 use human_utils::{confirm_or_exit, message_success, quote, FAILURE, SUCCESS};
 
-// TODO: Support `rem .` and `rem ..`
+// TODO: Support `del .` and `del ..`
 
 const DETAILS: &str = "
-As part of `human-utils`, `rem` asks for confirmation before
+As part of `human-utils`, `del` asks for confirmation before
 removing any <FILE_OR_DIRECTORY>.
 
-Examples where `rem` differs from `rm`:
+Examples where `del` differs from `rm`:
 
   Asks for confirmation:
-    `rem a` where a is an existing file will
+    `del a` where a is an existing file will
     ask for a confirmation and then will remove `a`,
     while `rm` will irreversibly remove `a`
     without any confirmation.
 
   Always removes:
-    `rem a` where a is an existing directory,
-    `rem` will ask for confirmation and then
+    `del a` where a is an existing directory,
+    `del` will ask for confirmation and then
     will remove `a`, while `rm a`
     will error out and request the use of `-r` option.
 
@@ -27,7 +27,7 @@ Exits with non-zero (failure) value if no files/directories were
 removed or if some existing files/directories were not removed.
 ";
 
-/// `rem`ove files and directories
+/// `del`ete files and directories
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 #[clap(after_long_help = DETAILS)]
@@ -37,20 +37,8 @@ struct CLI {
     #[arg(required(true))]
     file_or_directory: Vec<String>,
 
-    /// Never ask for confirmation
-    #[arg(short, long)]
-    // #[tested(rem_force)]
-    force: bool,
-
-    /// Do not print success messages, still prints errors
-    #[arg(short, long)]
-    // #[tested(rem_silent)]
-    silent: bool,
-
-    /// Ask for confirmation, print success messages and errors, but do not perform any changes
-    #[arg(short = 'n', long)]
-    // #[tested(rem_dry_run)]
-    dry_run: bool,
+    #[command(flatten)]
+    options: human_utils::StandardOptions,
 }
 
 fn main() {
@@ -58,12 +46,11 @@ fn main() {
     let paths = args.file_or_directory.iter().map(Utf8Path::new).collect();
     ask_to_confirm(&args, &paths);
     let all_removed = remove(&args, &paths);
-    print_outcome(&args, all_removed);
-    std::process::exit(SUCCESS);
+    std::process::exit(if all_removed { SUCCESS } else { FAILURE });
 }
 
 fn ask_to_confirm(args: &CLI, paths: &Vec<&Utf8Path>) {
-    if args.force {
+    if args.options.force {
         return;
     }
 
@@ -88,7 +75,7 @@ fn ask_for_single_path(path: &Utf8Path) {
                 "file"
             };
             // #[tested(rem_basic)]
-            print!("Remove {} \"{}\"? [Y/n]", file_type, path);
+            print!("Delete {} \"{}\"? [Y/n]", file_type, path);
         }
         Err(error) => {
             // #[tested(rem_no_existing::nonexistent_path_fails)]
@@ -116,7 +103,7 @@ fn ask_for_multiple_paths(paths: &Vec<&Utf8Path>) {
     }
     // #[tested(rem_basic)]
     print!(
-        "...remove all{}? [Y/n]",
+        "...delete all{}? [Y/n]",
         if all_exist { "" } else { " existing" }
     );
 }
@@ -140,16 +127,13 @@ fn print_path(path: &Utf8Path, metadata: &std::io::Result<std::fs::Metadata>) {
 
 // #[tested(TODO)]
 fn remove(args: &CLI, paths: &Vec<&Utf8Path>) -> bool {
-    if args.dry_run {
-        return true;
-    }
     let mut all_removed = true;
     for path in paths {
         let removed = if let Ok(metadata) = path.symlink_metadata() {
             if metadata.is_dir() {
-                remove_dir(path)
+                remove_dir(args, path)
             } else {
-                remove_file(path)
+                remove_file(args, path)
             }
         } else {
             // Consider non-existing files and directories as removed
@@ -162,32 +146,28 @@ fn remove(args: &CLI, paths: &Vec<&Utf8Path>) -> bool {
     all_removed
 }
 
-fn remove_dir(path: &Utf8Path) -> bool {
-    // #[tested(rem_basic)]
-    if let Err(error) = std::fs::remove_dir_all(path) {
-        // #[tested(TODO)]
-        eprintln!("Error for directory \"{}\": {}", path, error);
-        return false;
+fn remove_dir(args: &CLI, path: &Utf8Path) -> bool {
+    if !args.options.dry_run {
+        // #[tested(rem_basic)]
+        if let Err(error) = std::fs::remove_dir_all(path) {
+            // #[tested(TODO)]
+            eprintln!("Error for directory \"{}\": {}", path, error);
+            return false;
+        }
     }
+    message_success!(args, "{}", format!("D {}/", path).bright_red());
     true
 }
 
-fn remove_file(path: &Utf8Path) -> bool {
-    // #[tested(rem_basic)]
-    if let Err(error) = std::fs::remove_file(path) {
-        // #[tested(TODO)]
-        eprintln!("Error for file \"{}\": {}", path, error);
-        return false;
+fn remove_file(args: &CLI, path: &Utf8Path) -> bool {
+    if !args.options.dry_run {
+        // #[tested(rem_basic)]
+        if let Err(error) = std::fs::remove_file(path) {
+            // #[tested(TODO)]
+            eprintln!("Error for file \"{}\": {}", path, error);
+            return false;
+        }
     }
+    message_success!(args, "{}", format!("D {}", path).bright_red());
     true
-}
-
-fn print_outcome(args: &CLI, all_removed: bool) {
-    // #[tested(TODO)]
-    if !all_removed {
-        eprintln!("Error: Some existing files or directories could not be deleted");
-        std::process::exit(FAILURE);
-    }
-    // #[tested(rem_basic, rem_silent)]
-    message_success!(args, "Done");
 }

@@ -48,13 +48,18 @@ impl Environment {
 }
 
 #[allow(dead_code)]
-pub fn nam() -> Runner<'static> {
-    Runner::new("target/debug/nam")
+pub fn ren() -> Runner<'static> {
+    Runner::new("target/debug/ren")
 }
 
 #[allow(dead_code)]
 pub fn rem() -> Runner<'static> {
     Runner::new("target/debug/rem")
+}
+
+#[allow(dead_code)]
+pub fn nef() -> Runner<'static> {
+    Runner::new("target/debug/nef")
 }
 
 impl<'a> Runner<'a> {
@@ -93,7 +98,7 @@ impl<'a> Runner<'a> {
                 .canonicalize_utf8()
                 .context("Failed to convert target path to canonical")?,
         )
-        .args(&self.args)
+        .args([self.args, vec!["--color".to_owned()]].concat())
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
