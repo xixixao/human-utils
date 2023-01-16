@@ -96,6 +96,13 @@ fn quote_spaced(path: &Utf8Path, colored_path: String, color: colored::Color) ->
     }
 }
 
+pub fn directory_string(path: &Utf8Path) -> String {
+    if path.as_str().ends_with(std::path::MAIN_SEPARATOR) {
+        return path.to_string();
+    }
+    format!("{}{}", path, std::path::MAIN_SEPARATOR)
+}
+
 pub fn path_string<S: AsRef<str>>(path: S) -> String
 where
     S: AsRef<str>,

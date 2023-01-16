@@ -133,14 +133,15 @@ fn rename(args: &CLI, from: &Utf8Path, to: &Utf8Path) {
     }
 }
 
-const COLOR: colored::Color = colored::Color::BrightYellow;
+const COLOR: colored::Color = colored::Color::BrightGreen;
 
 // #[tested(nam_basic, nam_silent)]
 fn print_success(args: &CLI, destination: &Utf8Path, existing_ancestor: Option<&Utf8Path>) {
     message_success!(
         args,
-        "{}{}",
-        format!("R {} -> ", path_string(&args.file_or_directory)).color(COLOR),
+        "{} {} -> {}",
+        "R".color(COLOR),
+        path_string(&args.file_or_directory).bright_red(),
         human_utils::color_new(destination, existing_ancestor, COLOR)
     );
 }
