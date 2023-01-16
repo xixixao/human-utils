@@ -1,7 +1,6 @@
 use std::io::Write;
 
 use camino::Utf8Path;
-use colored::*;
 
 pub fn set_color_override(options: &StandardOptions) {
     if options.color {
@@ -9,11 +8,6 @@ pub fn set_color_override(options: &StandardOptions) {
     } else if options.no_color {
         colored::control::set_override(false);
     }
-}
-
-pub fn quote(path: &str) -> String {
-    let quote = "\"".bright_black();
-    format!("{}{}{}", quote, path, quote)
 }
 
 pub fn check_path_exists_and_confirm_or_exit(path: &Utf8Path) {
@@ -40,7 +34,11 @@ pub fn confirm_or_exit() {
     }
 }
 
-pub fn path_string(path: &str) -> String {
+pub fn path_string<S: AsRef<str>>(path: S) -> String
+where
+    S: AsRef<str>,
+{
+    let path = path.as_ref();
     if path.contains(" ") {
         format!("\"{}\"", path)
     } else {

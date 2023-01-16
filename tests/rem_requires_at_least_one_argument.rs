@@ -2,11 +2,11 @@ use anyhow::{ensure, Ok, Result};
 
 mod utils;
 
-use crate::utils::{rem, SUCCESS};
+use crate::utils::{del, SUCCESS};
 
 #[test]
 fn no_args_fails() -> Result<()> {
-    let code = rem().run()?.code;
+    let code = del().run()?.code;
     ensure!(code != SUCCESS);
     Ok(())
 }

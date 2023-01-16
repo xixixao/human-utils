@@ -3,12 +3,12 @@ use rstest::rstest;
 
 mod utils;
 
-use crate::utils::{env, rem};
+use crate::utils::{del, env};
 
 #[rstest]
 fn silent_does_not_print_success_messages(#[values("-s", "--silent")] option: &str) -> Result<()> {
     let env = env(&["foo"])?;
-    let res = rem().args(&["foo", option]).answer("").env(&env).run()?;
+    let res = del().args(&["foo", option]).answer("").env(&env).run()?;
     ensure!(res.output == "");
     Ok(())
 }

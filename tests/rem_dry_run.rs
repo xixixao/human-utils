@@ -1,15 +1,16 @@
 use anyhow::{ensure, Ok, Result};
+use colored::Colorize;
 use rstest::rstest;
 
 mod utils;
 
-use crate::utils::{env, rem};
+use crate::utils::{del, env};
 
 #[rstest]
 fn dry_run_doesnt_perform_changes(#[values("-n", "--dry-run")] option: &str) -> Result<()> {
     let env = env(&["foo"])?;
-    let res = rem().args(&["foo", option]).answer("").env(&env).run()?;
-    ensure!(res.output == "Done");
+    let res = del().args(&["foo", option]).answer("").env(&env).run()?;
+    ensure!(res.output == "D foo".bright_red().to_string());
     ensure!(env.exists("foo"));
     Ok(())
 }

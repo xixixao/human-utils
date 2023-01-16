@@ -1,26 +1,26 @@
 use camino::Utf8Path;
 use clap::Parser;
 use colored::*;
-use human_utils::{confirm_or_exit, message_success, quote, FAILURE, SUCCESS};
+use human_utils::{confirm_or_exit, message_success, path_string, FAILURE, SUCCESS};
 
 // TODO: Support `del .` and `del ..`
 
 const DETAILS: &str = "
 As part of `human-utils`, `del` asks for confirmation before
-removing any <FILE_OR_DIRECTORY>.
+deleting any <FILE_OR_DIRECTORY>.
 
 Examples where `del` differs from `rm`:
 
   Asks for confirmation:
     `del a` where a is an existing file will
-    ask for a confirmation and then will remove `a`,
-    while `rm` will irreversibly remove `a`
+    ask for a confirmation and then will delete `a`,
+    while `rm` will irreversibly delete `a`
     without any confirmation.
 
-  Always removes:
+  Always deletes:
     `del a` where a is an existing directory,
     `del` will ask for confirmation and then
-    will remove `a`, while `rm a`
+    will delete `a`, while `rm a`
     will error out and request the use of `-r` option.
 
 Exits with non-zero (failure) value if no files/directories were
@@ -44,6 +44,7 @@ struct CLI {
 fn main() {
     let args = CLI::parse();
     let paths = args.file_or_directory.iter().map(Utf8Path::new).collect();
+    human_utils::set_color_override(&args.options);
     ask_to_confirm(&args, &paths);
     let all_removed = remove(&args, &paths);
     std::process::exit(if all_removed { SUCCESS } else { FAILURE });
@@ -113,14 +114,14 @@ fn print_path(path: &Utf8Path, metadata: &std::io::Result<std::fs::Metadata>) {
         Ok(metadata) => {
             // #[tested(rem_multiple)]
             if metadata.is_dir() {
-                println!("{}", quote(&format!("{}/", path.as_str().blue())));
+                println!("{}", path_string(&format!("{}/", path)));
             } else {
-                println!("{}", quote(path.as_str()));
+                println!("{}", path_string(path));
             }
         }
         Err(error) => {
             // #[tested(rem_no_existing)]
-            eprintln!("{} error: {}", quote(path.as_str()), error);
+            eprintln!("\"{}\" error: {}", path, error);
         }
     }
 }
@@ -155,7 +156,11 @@ fn remove_dir(args: &CLI, path: &Utf8Path) -> bool {
             return false;
         }
     }
-    message_success!(args, "{}", format!("D {}/", path).bright_red());
+    message_success!(
+        args,
+        "{}",
+        format!("D {}", path_string(format!("{}/", path))).bright_red()
+    );
     true
 }
 
@@ -168,6 +173,6 @@ fn remove_file(args: &CLI, path: &Utf8Path) -> bool {
             return false;
         }
     }
-    message_success!(args, "{}", format!("D {}", path).bright_red());
+    message_success!(args, "{}", format!("D {}", path_string(path)).bright_red());
     true
 }

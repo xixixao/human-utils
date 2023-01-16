@@ -53,8 +53,8 @@ pub fn ren() -> Runner<'static> {
 }
 
 #[allow(dead_code)]
-pub fn rem() -> Runner<'static> {
-    Runner::new("target/debug/rem")
+pub fn del() -> Runner<'static> {
+    Runner::new("target/debug/del")
 }
 
 #[allow(dead_code)]

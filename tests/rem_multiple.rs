@@ -1,15 +1,19 @@
+use std::fmt::format;
+
 use anyhow::{ensure, Ok, Result};
+use colored::Colorize;
 
 mod utils;
 
-use crate::utils::{env, rem, SUCCESS};
+use crate::utils::{del, env, SUCCESS};
 
 #[test]
 fn removes_files() -> Result<()> {
     let env = env(&["foo", "bar"])?;
-    let res = rem().args(&["foo", "bar"]).answer("").env(&env).run()?;
-    ensure!(res.prompt == "For the following...\n\"foo\"\n\"bar\"\n...remove all? [Y/n]");
-    ensure!(res.output == "Done");
+    let res = del().args(&["foo", "bar"]).answer("").env(&env).run()?;
+    ensure!(res.prompt == "For the following...\nfoo\nbar\n...delete all? [Y/n]");
+    println!("{:?}", res.output);
+    ensure!(res.output == format!("{}\n{}", "D foo".bright_red(), "D bar".bright_red()));
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo"));
     ensure!(!env.exists("bar"));
@@ -19,9 +23,9 @@ fn removes_files() -> Result<()> {
 #[test]
 fn removes_directories() -> Result<()> {
     let env = env(&["foo/lorem", "bar/ipsum"])?;
-    let res = rem().args(&["foo", "bar"]).answer("").env(&env).run()?;
-    ensure!(res.prompt == "For the following...\n\"foo/\"\n\"bar/\"\n...remove all? [Y/n]");
-    ensure!(res.output == "Done");
+    let res = del().args(&["foo", "bar"]).answer("").env(&env).run()?;
+    ensure!(res.prompt == "For the following...\nfoo/\nbar/\n...delete all? [Y/n]");
+    ensure!(res.output == format!("{}\n{}", "D foo/".bright_red(), "D bar/".bright_red()));
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo/lorem"));
     ensure!(!env.exists("foo"));

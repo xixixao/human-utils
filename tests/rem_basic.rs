@@ -1,15 +1,16 @@
 use anyhow::{ensure, Ok, Result};
+use colored::Colorize;
 
 mod utils;
 
-use crate::utils::{env, rem, SUCCESS};
+use crate::utils::{del, env, SUCCESS};
 
 #[test]
 fn removes_file() -> Result<()> {
     let env = env(&["foo"])?;
-    let res = rem().args(&["foo"]).answer("").env(&env).run()?;
-    ensure!(res.prompt == "Remove file \"foo\"? [Y/n]");
-    ensure!(res.output == "Done");
+    let res = del().args(&["foo"]).answer("").env(&env).run()?;
+    ensure!(res.prompt == "Delete file \"foo\"? [Y/n]");
+    ensure!(res.output == "D foo".bright_red().to_string());
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo"));
     Ok(())
@@ -18,9 +19,9 @@ fn removes_file() -> Result<()> {
 #[test]
 fn removes_directory() -> Result<()> {
     let env = env(&["foo/lorem"])?;
-    let res = rem().args(&["foo"]).answer("").env(&env).run()?;
-    ensure!(res.prompt == "Remove directory \"foo\"? [Y/n]");
-    ensure!(res.output == "Done");
+    let res = del().args(&["foo"]).answer("").env(&env).run()?;
+    ensure!(res.prompt == "Delete directory \"foo\"? [Y/n]");
+    ensure!(res.output == "D foo/".bright_red().to_string());
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo/lorem"));
     ensure!(!env.exists("foo"));
