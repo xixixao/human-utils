@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use anyhow::{ensure, Ok, Result};
 use colored::Colorize;
 

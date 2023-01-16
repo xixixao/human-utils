@@ -1,12 +1,40 @@
 use std::io::Write;
 
 use camino::Utf8Path;
+use colored::Colorize;
 
 pub fn set_color_override(options: &StandardOptions) {
     if options.color {
         colored::control::set_override(true);
     } else if options.no_color {
         colored::control::set_override(false);
+    }
+}
+
+pub fn find_existing_ancestor_directory<'a>(
+    options: &StandardOptions,
+    path: &'a Utf8Path,
+) -> Option<&'a Utf8Path> {
+    if options.no_color {
+        return None;
+    }
+
+    let mut ancestor = path.parent();
+    while let Some(ancestor_path) = ancestor {
+        if ancestor_path.exists() {
+            return Some(ancestor_path);
+        }
+        ancestor = ancestor_path.parent();
+    }
+    None
+}
+
+pub fn create_parent_directory(options: &StandardOptions, path: &Utf8Path) {
+    if options.dry_run {
+        return;
+    }
+    if let Some(directory) = path.parent() {
+        std::fs::create_dir_all(directory).unwrap();
     }
 }
 
@@ -31,6 +59,40 @@ pub fn confirm_or_exit() {
     std::io::stdin().read_line(&mut input).unwrap();
     if input != "\n" && !input.trim().to_lowercase().starts_with('y') {
         std::process::exit(FAILURE);
+    }
+}
+
+pub fn color_new(
+    path: &Utf8Path,
+    existing_ancestor: Option<&Utf8Path>,
+    color: colored::Color,
+) -> String {
+    quote_spaced(
+        path,
+        if let Some(existing_ancestor_path) = existing_ancestor {
+            format!(
+                "{}{}{}",
+                existing_ancestor_path,
+                std::path::MAIN_SEPARATOR,
+                path.strip_prefix(existing_ancestor_path)
+                    .unwrap()
+                    .to_string()
+                    .color(color)
+            )
+        } else {
+            path_string(path).color(color).to_string()
+        },
+        color,
+    )
+}
+
+fn quote_spaced(path: &Utf8Path, colored_path: String, color: colored::Color) -> String {
+    let path_str: &str = path.as_ref();
+    if path_str.contains(" ") {
+        let quote = "\"".color(color);
+        format!("{}{}{}", quote, colored_path, quote)
+    } else {
+        colored_path
     }
 }
 

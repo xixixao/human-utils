@@ -42,11 +42,11 @@ struct CLI {
 }
 
 fn main() {
-    let args = CLI::parse();
-    let paths = args.file_or_directory.iter().map(Utf8Path::new).collect();
+    let args = &CLI::parse();
+    let paths = &args.file_or_directory.iter().map(Utf8Path::new).collect();
     human_utils::set_color_override(&args.options);
-    ask_to_confirm(&args, &paths);
-    let all_removed = remove(&args, &paths);
+    ask_to_confirm(args, paths);
+    let all_removed = remove(args, paths);
     std::process::exit(if all_removed { SUCCESS } else { FAILURE });
 }
 
@@ -114,7 +114,10 @@ fn print_path(path: &Utf8Path, metadata: &std::io::Result<std::fs::Metadata>) {
         Ok(metadata) => {
             // #[tested(rem_multiple)]
             if metadata.is_dir() {
-                println!("{}", path_string(&format!("{}/", path)));
+                println!(
+                    "{}",
+                    path_string(&format!("{}{}", path, std::path::MAIN_SEPARATOR))
+                );
             } else {
                 println!("{}", path_string(path));
             }
@@ -159,7 +162,11 @@ fn remove_dir(args: &CLI, path: &Utf8Path) -> bool {
     message_success!(
         args,
         "{}",
-        format!("D {}", path_string(format!("{}/", path))).bright_red()
+        format!(
+            "D {}",
+            path_string(format!("{}{}", path, std::path::MAIN_SEPARATOR))
+        )
+        .bright_red()
     );
     true
 }

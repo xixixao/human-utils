@@ -1,7 +1,7 @@
 use camino::Utf8Path;
 use clap::Parser;
 use colored::Colorize;
-use human_utils::{message_success, path_string, SUCCESS};
+use human_utils::{message_success, SUCCESS};
 
 /// `nef` - create a new file
 #[derive(Parser, Debug)]
@@ -21,15 +21,17 @@ struct CLI {
 }
 
 fn main() {
-    let args = CLI::parse();
+    let args = &CLI::parse();
+    let options = &args.options;
     let path = Utf8Path::new(&args.file_path);
-    human_utils::set_color_override(&args.options);
-    check_empty_file_exists_already(&args, &path);
-    check_path_exists(&args, &path);
-    delete_directory_at_path(&args, &path);
-    create_directory(&args, &path);
-    create_file(&args, &path);
-    print_success(&args);
+    human_utils::set_color_override(options);
+    check_empty_file_exists_already(args, path);
+    check_path_exists(args, path);
+    delete_directory_at_path(args, path);
+    let existing_ancestor = human_utils::find_existing_ancestor_directory(options, path);
+    human_utils::create_parent_directory(options, path);
+    create_file(args, path);
+    print_success(args, path, existing_ancestor);
     std::process::exit(SUCCESS);
 }
 
@@ -45,7 +47,11 @@ fn check_empty_file_exists_already(args: &CLI, path: &Utf8Path) {
 
     if let Ok(metadata) = path.symlink_metadata() {
         if metadata.is_file() && metadata.len() == 0 {
-            print!("Empty file \"{}\" already exists", path);
+            message_success!(
+                args,
+                "{}",
+                format!("Empty file \"{}\" already exists", path).color(COLOR)
+            );
             std::process::exit(SUCCESS);
         }
     }
@@ -72,15 +78,6 @@ fn delete_directory_at_path(args: &CLI, path: &Utf8Path) {
     }
 }
 
-fn create_directory(args: &CLI, path: &Utf8Path) {
-    if args.options.dry_run {
-        return;
-    }
-    if let Some(directory) = path.parent() {
-        std::fs::create_dir_all(directory).unwrap();
-    }
-}
-
 fn create_file(args: &CLI, path: &Utf8Path) {
     if args.options.dry_run {
         return;
@@ -88,11 +85,14 @@ fn create_file(args: &CLI, path: &Utf8Path) {
     std::fs::write(path, args.content.as_deref().unwrap_or("")).unwrap();
 }
 
+const COLOR: colored::Color = colored::Color::BrightGreen;
+
 // #[tested(nam_basic, nam_silent)]
-fn print_success(args: &CLI) {
+fn print_success(args: &CLI, file_path: &Utf8Path, existing_ancestor: Option<&Utf8Path>) {
     message_success!(
         args,
-        "{}",
-        format!("N {}", path_string(&args.file_path)).bright_green()
+        "{}{}",
+        "N ".color(COLOR),
+        human_utils::color_new(file_path, existing_ancestor, COLOR)
     );
 }

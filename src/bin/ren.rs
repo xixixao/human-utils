@@ -56,15 +56,18 @@ struct CLI {
 }
 
 fn main() {
-    let args = CLI::parse();
+    let args = &CLI::parse();
+    let options = &args.options;
     let source = Utf8Path::new(&args.file_or_directory);
     let destination = Utf8Path::new(&args.destination);
     human_utils::set_color_override(&args.options);
-    check_source_exists(&source);
-    check_source_already_at_destination(&args, &source, &destination);
-    check_destination_exists(&args, &destination);
-    rename(&args, &source, &destination);
-    print_success(&args);
+    check_source_exists(source);
+    check_source_already_at_destination(args, source, destination);
+    check_destination_exists(args, destination);
+    let existing_ancestor = human_utils::find_existing_ancestor_directory(options, destination);
+    human_utils::create_parent_directory(options, destination);
+    rename(args, source, destination);
+    print_success(args, destination, existing_ancestor);
     std::process::exit(SUCCESS);
 }
 
@@ -130,16 +133,14 @@ fn rename(args: &CLI, from: &Utf8Path, to: &Utf8Path) {
     }
 }
 
+const COLOR: colored::Color = colored::Color::BrightYellow;
+
 // #[tested(nam_basic, nam_silent)]
-fn print_success(args: &CLI) {
+fn print_success(args: &CLI, destination: &Utf8Path, existing_ancestor: Option<&Utf8Path>) {
     message_success!(
         args,
-        "{}",
-        format!(
-            "M {} -> {}",
-            path_string(&args.file_or_directory),
-            path_string(&args.destination)
-        )
-        .bright_blue()
+        "{}{}",
+        format!("R {} -> ", path_string(&args.file_or_directory)).color(COLOR),
+        human_utils::color_new(destination, existing_ancestor, COLOR)
     );
 }
