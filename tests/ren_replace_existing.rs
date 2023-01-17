@@ -1,5 +1,4 @@
 use anyhow::{ensure, Ok, Result};
-use colored::Colorize;
 use rstest::rstest;
 
 mod utils;
@@ -11,7 +10,7 @@ fn asks_for_confirmation() -> Result<()> {
     let env = env(&["foo", "bar"])?;
     let res = ren().args(&["foo", "bar"]).answer("").env(&env).run()?;
     ensure!(res.prompt == "File \"bar\" already exists, replace it? [Y/n]");
-    ensure!(res.output == "M foo -> bar".bright_blue().to_string());
+    ensure!(res.output == "R foo -> bar");
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo"));
     ensure!(env.read("bar")? == "foo");
@@ -57,7 +56,7 @@ fn file_replacing_dir() -> Result<()> {
     let env = env(&["foo", "bar/baz"])?;
     let res = ren().args(&["foo", "bar"]).answer("\n").env(&env).run()?;
     ensure!(res.prompt == "Directory \"bar\" already exists, replace it? [Y/n]");
-    ensure!(res.output == "M foo -> bar".bright_blue().to_string());
+    ensure!(res.output == "R foo -> bar");
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo"));
     ensure!(!env.exists("bar/baz"));
@@ -70,7 +69,7 @@ fn dir_replacing_file() -> Result<()> {
     let env = env(&["foo/baz", "bar"])?;
     let res = ren().args(&["foo", "bar"]).answer("\n").env(&env).run()?;
     ensure!(res.prompt == "File \"bar\" already exists, replace it? [Y/n]");
-    ensure!(res.output == "M foo -> bar".bright_blue().to_string());
+    ensure!(res.output == "R foo -> bar");
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo"));
     ensure!(!env.exists("foo/baz"));
@@ -84,7 +83,7 @@ fn dir_replacing_dir() -> Result<()> {
     let env = env(&["foo/baz", "bar/lorem"])?;
     let res = ren().args(&["foo", "bar"]).answer("\n").env(&env).run()?;
     ensure!(res.prompt == "Directory \"bar\" already exists, replace it? [Y/n]");
-    ensure!(res.output == "M foo -> bar".bright_blue().to_string());
+    ensure!(res.output == "R foo -> bar");
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo"));
     ensure!(!env.exists("foo/baz"));

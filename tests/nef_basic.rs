@@ -8,7 +8,7 @@ use crate::utils::{env, nef, SUCCESS};
 #[test]
 fn creates_a_file() -> Result<()> {
     let env = env(&[])?;
-    let res = nef().args(&["foo"]).env(&env).run()?;
+    let res = nef().args(&["foo", "--color"]).env(&env).run()?;
     ensure!(res.output == "N foo".bright_green().to_string());
     ensure!(res.code == SUCCESS);
     ensure!(env.read("foo")? == "");

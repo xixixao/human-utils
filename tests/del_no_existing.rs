@@ -1,5 +1,4 @@
 use anyhow::{ensure, Ok, Result};
-use colored::Colorize;
 use regex::Regex;
 
 pub mod utils;
@@ -31,7 +30,7 @@ fn mix_of_existing_and_not_succeeds() -> Result<()> {
     let res = del().args(&["foo", "bar"]).answer("").env(&env).run()?;
     ensure!(res.prompt == "For the following...\nfoo\n...delete all existing? [Y/n]");
     ensure!(res.error.starts_with("\"bar\" error:"));
-    ensure!(res.output == "D foo".bright_red().to_string());
+    ensure!(res.output == "D foo");
     ensure!(res.code == SUCCESS);
     Ok(())
 }

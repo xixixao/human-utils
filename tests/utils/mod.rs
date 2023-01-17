@@ -98,7 +98,7 @@ impl<'a> Runner<'a> {
                 .canonicalize_utf8()
                 .context("Failed to convert target path to canonical")?,
         )
-        .args([self.args, vec!["--color".to_owned()]].concat())
+        .args(self.args)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

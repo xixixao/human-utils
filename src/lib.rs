@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use camino::Utf8Path;
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
 
 pub fn set_color_override(options: &StandardOptions) {
     if options.color {
@@ -66,7 +66,7 @@ pub fn color_new(
     path: &Utf8Path,
     existing_ancestor: Option<&Utf8Path>,
     color: colored::Color,
-) -> String {
+) -> ColoredString {
     quote_spaced(
         path,
         if let Some(existing_ancestor_path) = existing_ancestor {
@@ -79,18 +79,23 @@ pub fn color_new(
                     .to_string()
                     .color(color)
             )
+            .normal()
         } else {
-            path_string(path).color(color).to_string()
+            path_string(path).color(color)
         },
         color,
     )
 }
 
-fn quote_spaced(path: &Utf8Path, colored_path: String, color: colored::Color) -> String {
+fn quote_spaced(
+    path: &Utf8Path,
+    colored_path: ColoredString,
+    color: colored::Color,
+) -> ColoredString {
     let path_str: &str = path.as_ref();
     if path_str.contains(" ") {
         let quote = "\"".color(color);
-        format!("{}{}{}", quote, colored_path, quote)
+        format!("{}{}{}", quote, colored_path, quote).normal()
     } else {
         colored_path
     }

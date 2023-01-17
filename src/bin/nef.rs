@@ -1,6 +1,6 @@
 use camino::Utf8Path;
 use clap::Parser;
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
 use human_utils::{message_success, SUCCESS};
 
 /// `nef` - create a new file
@@ -91,8 +91,19 @@ const COLOR: colored::Color = colored::Color::BrightGreen;
 fn print_success(args: &CLI, file_path: &Utf8Path, existing_ancestor: Option<&Utf8Path>) {
     message_success!(
         args,
-        "{}{}",
-        "N ".color(COLOR),
-        human_utils::color_new(file_path, existing_ancestor, COLOR)
+        "{}",
+        join_colored(
+            "N ".color(COLOR),
+            human_utils::color_new(file_path, existing_ancestor, COLOR)
+        )
     );
+}
+
+fn join_colored(first: ColoredString, second: ColoredString) -> ColoredString {
+    if let Some(color) = first.fgcolor() {
+        if Some(color) == second.fgcolor() {
+            return format!("{}{}", first.clear(), second.clear()).color(color);
+        }
+    }
+    format!("{}{}", first, second).normal()
 }
