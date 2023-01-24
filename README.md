@@ -1,8 +1,8 @@
 # Human Utils
 
-These programs replace the standard UNIX commands for working with files: `mv`, `cp`, `rm`, `touch`, `mkdir`. The new utils are designed for interactive use and to prevent frustration and loss of data.
+These programs replace the standard UNIX commands for working with files: `touch`, `mkdir`, `mv`, `cp`, `rm`. The new utils are designed for interactive use and to prevent frustration and loss of data.
 
-The new utils are `nef` new file, `ned` new directory, `mov`e, `ren`ame, `cop`y, `del`ete and `undo`.
+The new utils are `new` to create files and directories, `mov`e, `ren`ame, `cop`y, `del`ete and `undo`.
 
 See [Three letters are too long](#three-letters-are-too-long) for shorter names.
 
@@ -23,10 +23,11 @@ Scenario:
 <!-- prettier-ignore -->
 | coreutils  | human-utils | outcome  |
 | --- | --- | --- |
-| `touch hockey`  | `nef hockey` | <code style="color: green">N root/hockey</code> |
-| `mkdir rocks`<br/>`touch rocks/ruby` | `nef rocks/ruby` | <code style="color: green">N root/rocks/ruby</code>    |
-| `mkdir rocks`<br/>`echo 💎 > rocks/ruby`     | `nef rocks/ruby 💎`     | <code style="color: green">N root/rocks/ruby</code><br />&nbsp;&nbsp;`text: 💎` |
-| `mkdir rocks`<br />`cd rocks` | `ned rocks -c` | |
+| `touch hockey`  | `fil hockey` | <code style="color: green">N root/hockey</code> |
+| `mkdir rocks`<br/>`touch rocks/ruby` | `new rocks/ruby` | <code style="color: green">N root/rocks/ruby</code>    |
+| `mkdir rocks`<br/>`echo 💎 > rocks/ruby`     | `new rocks/ruby 💎`     | <code style="color: green">N root/rocks/ruby</code><br />&nbsp;&nbsp;`text: 💎` |
+| `mkdir rocks` | `new rocks/` | <code style="color: green">N root/rocks/</code> |
+| `mkdir rocks`<br />`cd rocks` | `new rocks/ -c` | |
 | `mv rugby dogs` | `mov rugby dogs`  | <code style="color: purple">R rugby -> dogs/rugby</code>  |
 | `mv rugby tennis`  | `ren rugby tennis`<br />`... [y/N]?` <kbd>Enter</kbd> | <code style="color: red">D tennis</code><br /><code style="color: purple">R rugby -> tennis</code> |
 | `mv rugby tennis dogs` | `mov rugby tennis dogs` | <code style="color: purple">R rugby -> dogs/rugby</code><br/><code style="color: purple">R tennis -> dogs/tennis</code> |
@@ -73,11 +74,12 @@ In Fish shell this can be accomplished by amending the `fish_greeting` function:
 
 ```
 function fish_greeting
-    alias nf nef
-    alias nd ned
+    alias ne new
     alias mv mov
     alias re ren
     alias cp cop
-    alias rm del
+    alias rm del # or `alias de del`
+    # alias mkdir "new -d"
+    # alias touch "new -f"
 end
 ```

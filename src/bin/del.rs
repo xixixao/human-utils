@@ -2,7 +2,7 @@ use camino::Utf8Path;
 use clap::Parser;
 use colored::*;
 use human_utils::{
-    confirm_or_exit, directory_string, message_success, path_string, FAILURE, SUCCESS,
+    confirm_or_exit, directory_path, message_success, path_string, FAILURE, SUCCESS,
 };
 
 // TODO: Support `del .` and `del ..`
@@ -116,7 +116,7 @@ fn print_path(path: &Utf8Path, metadata: &std::io::Result<std::fs::Metadata>) {
         Ok(metadata) => {
             // #[tested(rem_multiple)]
             if metadata.is_dir() {
-                println!("{}", directory_string(path));
+                println!("{}", directory_path(path));
             } else {
                 println!("{}", path_string(path));
             }
@@ -161,7 +161,7 @@ fn remove_dir(args: &CLI, path: &Utf8Path) -> bool {
     message_success!(
         args,
         "{}",
-        format!("D {}", directory_string(path)).bright_red()
+        format!("D {}", directory_path(path)).bright_red()
     );
     true
 }

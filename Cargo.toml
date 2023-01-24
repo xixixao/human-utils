@@ -6,9 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+cached = "0.42.0"
 camino = "1.1.1"
 clap = { version = "4.0.32", features = ["derive", "unicode", "wrap_help"] }
 colored = "2.0.0"
+const_format = "0.2.30"
 
 [dev-dependencies]
 anyhow = { version = "1.0.68", features = ["backtrace"] }

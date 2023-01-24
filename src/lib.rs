@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use camino::Utf8Path;
+use camino::{Utf8Path, Utf8PathBuf};
 use colored::{ColoredString, Colorize};
 
 pub fn set_color_override(options: &StandardOptions) {
@@ -29,13 +29,12 @@ pub fn find_existing_ancestor_directory<'a>(
     None
 }
 
-pub fn create_parent_directory(options: &StandardOptions, path: &Utf8Path) {
-    if options.dry_run {
-        return;
+pub fn create_parent_directory<'a>(options: &StandardOptions, path: &'a Utf8Path) -> &'a Utf8Path {
+    let parent_directory = path.parent().unwrap();
+    if !options.dry_run {
+        std::fs::create_dir_all(parent_directory).unwrap();
     }
-    if let Some(directory) = path.parent() {
-        std::fs::create_dir_all(directory).unwrap();
-    }
+    parent_directory
 }
 
 pub fn check_path_exists_and_confirm_or_exit(path: &Utf8Path) {
@@ -74,10 +73,7 @@ pub fn color_new(
                 "{}{}{}",
                 existing_ancestor_path,
                 std::path::MAIN_SEPARATOR,
-                path.strip_prefix(existing_ancestor_path)
-                    .unwrap()
-                    .to_string()
-                    .color(color)
+                strip_path_prefix(path, existing_ancestor_path).color(color)
             )
             .normal()
         } else {
@@ -87,13 +83,22 @@ pub fn color_new(
     )
 }
 
+fn strip_path_prefix(path: &Utf8Path, prefix: &Utf8Path) -> String {
+    let new_path = path.strip_prefix(prefix).unwrap();
+    if path.as_str().ends_with(std::path::MAIN_SEPARATOR) {
+        directory_path(new_path).to_string()
+    } else {
+        new_path.to_string()
+    }
+}
+
 fn quote_spaced(
     path: &Utf8Path,
     colored_path: ColoredString,
     color: colored::Color,
 ) -> ColoredString {
     let path_str: &str = path.as_ref();
-    if path_str.contains(" ") {
+    if path_str.contains(' ') {
         let quote = "\"".color(color);
         format!("{}{}{}", quote, colored_path, quote).normal()
     } else {
@@ -101,11 +106,11 @@ fn quote_spaced(
     }
 }
 
-pub fn directory_string(path: &Utf8Path) -> String {
+pub fn directory_path(path: &Utf8Path) -> Utf8PathBuf {
     if path.as_str().ends_with(std::path::MAIN_SEPARATOR) {
-        return path.to_string();
+        return path.to_owned();
     }
-    format!("{}{}", path, std::path::MAIN_SEPARATOR)
+    Utf8PathBuf::from(format!("{}{}", path, std::path::MAIN_SEPARATOR))
 }
 
 pub fn path_string<S: AsRef<str>>(path: S) -> String
@@ -113,7 +118,7 @@ where
     S: AsRef<str>,
 {
     let path = path.as_ref();
-    if path.contains(" ") {
+    if path.contains(' ') {
         format!("\"{}\"", path)
     } else {
         path.to_owned()
@@ -139,7 +144,7 @@ pub struct StandardOptions {
     // #[tested(nam_force)]
     pub force: bool,
 
-    /// Do not print success messages, still prints errors
+    /// Do not print success messages, still print errors
     #[arg(short, long)]
     // #[tested(nam_silent)]
     pub silent: bool,
