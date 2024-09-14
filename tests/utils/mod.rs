@@ -58,8 +58,8 @@ pub fn del() -> Runner<'static> {
 }
 
 #[allow(dead_code)]
-pub fn nef() -> Runner<'static> {
-    Runner::new("target/debug/nef")
+pub fn new() -> Runner<'static> {
+    Runner::new("target/debug/new")
 }
 
 impl<'a> Runner<'a> {

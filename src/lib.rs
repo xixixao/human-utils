@@ -1,3 +1,7 @@
+mod lazy_path;
+
+pub use lazy_path::LazyPath;
+
 use std::io::Write;
 
 use camino::{Utf8Path, Utf8PathBuf};
@@ -29,6 +33,13 @@ pub fn find_existing_ancestor_directory<'a>(
     None
 }
 
+pub fn create_directory(options: &StandardOptions, path: &Utf8Path) {
+    if options.dry_run {
+        return;
+    }
+    std::fs::create_dir_all(path).unwrap();
+}
+
 pub fn create_parent_directory<'a>(options: &StandardOptions, path: &'a Utf8Path) -> &'a Utf8Path {
     let parent_directory = path.parent().unwrap();
     if !options.dry_run {
@@ -37,7 +48,11 @@ pub fn create_parent_directory<'a>(options: &StandardOptions, path: &'a Utf8Path
     parent_directory
 }
 
-pub fn check_path_exists_and_confirm_or_exit(path: &Utf8Path) {
+pub fn check_path_exists_and_confirm_or_exit(options: &StandardOptions, path: &Utf8Path) {
+    if options.force {
+        return;
+    }
+
     if let Ok(metadata) = path.symlink_metadata() {
         let file_type = if metadata.is_dir() {
             "Directory"
@@ -52,12 +67,55 @@ pub fn check_path_exists_and_confirm_or_exit(path: &Utf8Path) {
     }
 }
 
+pub fn check_paths_exist_and_confirm_or_exit(options: &StandardOptions, paths: &Vec<Utf8PathBuf>) {
+    if options.force {
+        return;
+    }
+    let clashing: Vec<_> = paths.iter().filter(|path| path.exists()).collect();
+    if clashing.is_empty() {
+        return;
+    }
+    if let [path] = clashing.as_slice() {
+        ask_for_single_path(&path);
+    } else {
+        ask_for_multiple_paths(&clashing);
+    }
+    confirm_or_exit();
+}
+
 pub fn confirm_or_exit() {
     std::io::stdout().flush().unwrap();
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap();
     if input != "\n" && !input.trim().to_lowercase().starts_with('y') {
         std::process::exit(FAILURE);
+    }
+}
+
+fn ask_for_single_path(path: &Utf8Path) {
+    let metadata = path.symlink_metadata().unwrap();
+    let file_type = if metadata.is_dir() {
+        "directory"
+    } else {
+        "file"
+    };
+    print!("Overwrite {} \"{}\"? [Y/n]", file_type, path);
+}
+
+fn ask_for_multiple_paths(paths: &Vec<&Utf8PathBuf>) {
+    println!("For the following...");
+    for path in paths {
+        let metadata = path.symlink_metadata().unwrap();
+        print_path(path, &metadata);
+    }
+    print!("...overwrite all? [Y/n]");
+}
+
+fn print_path(path: &Utf8Path, metadata: &std::fs::Metadata) {
+    if metadata.is_dir() {
+        println!("{}", directory_path(path));
+    } else {
+        println!("{}", path_string(path));
     }
 }
 
@@ -161,4 +219,17 @@ pub struct StandardOptions {
     /// Never color output
     #[arg(long, conflicts_with = "color")]
     pub no_color: bool,
+}
+
+// a unit test
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_strip_path_prefix() {
+        let path = Utf8PathBuf::from("/a/b/c");
+        let prefix = Utf8PathBuf::from("/a");
+        assert_eq!(strip_path_prefix(&path, &prefix), "b/c");
+    }
 }

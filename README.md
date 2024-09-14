@@ -2,7 +2,7 @@
 
 These programs replace the standard UNIX commands for working with files: `touch`, `mkdir`, `mv`, `cp`, `rm`. The new utils are designed for interactive use and to prevent frustration and loss of data.
 
-The new utils are `new` to create files and directories, `mov`e, `ren`ame, `cop`y, `del`ete and `undo`.
+The new utils are `new` to create files and directories, `mov`e, `cop`y, `del`ete and `undo`.
 
 See [Three letters are too long](#three-letters-are-too-long) for shorter names.
 
@@ -23,15 +23,16 @@ Scenario:
 <!-- prettier-ignore -->
 | coreutils  | human-utils | outcome  |
 | --- | --- | --- |
-| `touch hockey`  | `fil hockey` | <code style="color: green">N root/hockey</code> |
+| `touch hockey`  | `new hockey` | <code style="color: green">N root/hockey</code> |
 | `mkdir rocks`<br/>`touch rocks/ruby` | `new rocks/ruby` | <code style="color: green">N root/rocks/ruby</code>    |
-| `mkdir rocks`<br/>`echo 💎 > rocks/ruby`     | `new rocks/ruby 💎`     | <code style="color: green">N root/rocks/ruby</code><br />&nbsp;&nbsp;`text: 💎` |
+| `mkdir rocks`<br/>`echo 💎 > rocks/ruby`     | `new rocks/ruby -- 💎`     | <code style="color: green">N root/rocks/ruby</code><br />&nbsp;&nbsp;`text: 💎` |
 | `mkdir rocks` | `new rocks/` | <code style="color: green">N root/rocks/</code> |
-| `mkdir rocks`<br />`cd rocks` | `new rocks/ -c` | |
-| `mv rugby dogs` | `mov rugby dogs`  | <code style="color: purple">R rugby -> dogs/rugby</code>  |
-| `mv rugby tennis`  | `ren rugby tennis`<br />`... [y/N]?` <kbd>Enter</kbd> | <code style="color: red">D tennis</code><br /><code style="color: purple">R rugby -> tennis</code> |
-| `mv rugby tennis dogs` | `mov rugby tennis dogs` | <code style="color: purple">R rugby -> dogs/rugby</code><br/><code style="color: purple">R tennis -> dogs/tennis</code> |
-| `mkdir sports`<br/>  `mv rugby tennis sports` | `mov rugby tennis sports` | <code style="color: purple">R rugby -> sports/rugby</code><br/><code style="color: purple">R tennis -> sports/tennis</code> |
+| `mkdir rocks`<br />`cd rocks` | `new rocks/ -c` | <code style="color: green">N root/rocks/</code><br />&nbsp;&nbsp;`current working directory` |
+| `mv rugby dogs` | `mov rugby dogs/`  | <code style="color: purple">M rugby -> dogs/rugby</code>  |
+| `mv rugby tennis`  | `mov rugby tennis`<br />`... [y/N]?` <kbd>Enter</kbd> | <code style="color: red">D tennis</code><br /><code style="color: purple">M rugby -> tennis</code> |
+| `rm -r dogs`<br />`mv cats dogs`  | `mov cats dogs`<br />`... [y/N]?` <kbd>Enter</kbd> | <code style="color: red">D dogs</code><br /><code style="color: purple">M cats -> dogs</code> |
+| `mv rugby tennis dogs` | `mov rugby tennis dogs/` | <code style="color: purple">M rugby -> dogs/rugby</code><br/><code style="color: purple">M tennis -> dogs/tennis</code> |
+| `mkdir sports`<br/>  `mv rugby tennis sports` | `mov rugby tennis sports/` | <code style="color: purple">R rugby -> sports/rugby</code><br/><code style="color: purple">R tennis -> sports/tennis</code> |
 
 ## Principles
 
