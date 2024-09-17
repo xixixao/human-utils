@@ -2,7 +2,8 @@ use camino::Utf8Path;
 use clap::Parser;
 use colored::*;
 use human_utils::{
-    confirm_or_exit, directory_path, message_success, path_string, FAILURE, SUCCESS,
+    confirm_or_exit, directory_path, message_success, path_string, StandardOptions, FAILURE,
+    SUCCESS,
 };
 
 // TODO: Support `del .` and `del ..`
@@ -40,20 +41,23 @@ struct CLI {
     file_or_directory: Vec<String>,
 
     #[command(flatten)]
-    options: human_utils::StandardOptions,
+    options: StandardOptions,
 }
 
 fn main() {
-    let args = &CLI::parse();
-    let paths = &args.file_or_directory.iter().map(Utf8Path::new).collect();
-    human_utils::set_color_override(&args.options);
-    ask_to_confirm(args, paths);
-    let all_removed = remove(args, paths);
+    let CLI {
+        file_or_directory,
+        options,
+    } = CLI::parse();
+    let paths: Vec<&Utf8Path> = file_or_directory.iter().map(Utf8Path::new).collect();
+    human_utils::set_color_override(&options);
+    ask_to_confirm(&options, &paths);
+    let all_removed = remove(&options, &paths);
     std::process::exit(if all_removed { SUCCESS } else { FAILURE });
 }
 
-fn ask_to_confirm(args: &CLI, paths: &Vec<&Utf8Path>) {
-    if args.options.force {
+fn ask_to_confirm(options: &StandardOptions, paths: &Vec<&Utf8Path>) {
+    if options.force {
         return;
     }
 
@@ -129,14 +133,14 @@ fn print_path(path: &Utf8Path, metadata: &std::io::Result<std::fs::Metadata>) {
 }
 
 // #[tested(TODO)]
-fn remove(args: &CLI, paths: &Vec<&Utf8Path>) -> bool {
+fn remove(options: &StandardOptions, paths: &Vec<&Utf8Path>) -> bool {
     let mut all_removed = true;
     for path in paths {
         let removed = if let Ok(metadata) = path.symlink_metadata() {
             if metadata.is_dir() {
-                remove_dir(args, path)
+                remove_dir(options, path)
             } else {
-                remove_file(args, path)
+                remove_file(options, path)
             }
         } else {
             // Consider non-existing files and directories as removed
@@ -149,8 +153,8 @@ fn remove(args: &CLI, paths: &Vec<&Utf8Path>) -> bool {
     all_removed
 }
 
-fn remove_dir(args: &CLI, path: &Utf8Path) -> bool {
-    if !args.options.dry_run {
+fn remove_dir(options: &StandardOptions, path: &Utf8Path) -> bool {
+    if !options.dry_run {
         // #[tested(rem_basic)]
         if let Err(error) = std::fs::remove_dir_all(path) {
             // #[tested(TODO)]
@@ -159,15 +163,15 @@ fn remove_dir(args: &CLI, path: &Utf8Path) -> bool {
         }
     }
     message_success!(
-        args,
+        options,
         "{}",
         format!("D {}", directory_path(path)).bright_red()
     );
     true
 }
 
-fn remove_file(args: &CLI, path: &Utf8Path) -> bool {
-    if !args.options.dry_run {
+fn remove_file(options: &StandardOptions, path: &Utf8Path) -> bool {
+    if !options.dry_run {
         // #[tested(rem_basic)]
         if let Err(error) = std::fs::remove_file(path) {
             // #[tested(TODO)]
@@ -175,6 +179,10 @@ fn remove_file(args: &CLI, path: &Utf8Path) -> bool {
             return false;
         }
     }
-    message_success!(args, "{}", format!("D {}", path_string(path)).bright_red());
+    message_success!(
+        options,
+        "{}",
+        format!("D {}", path_string(path)).bright_red()
+    );
     true
 }

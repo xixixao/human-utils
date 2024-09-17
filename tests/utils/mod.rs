@@ -8,9 +8,13 @@ use std::io::{BufRead, Read, Write};
 pub const SUCCESS: i32 = 0;
 
 pub struct Outcome {
+    #[allow(dead_code)]
     pub prompt: String,
+    #[allow(dead_code)]
     pub output: String,
+    #[allow(dead_code)]
     pub error: String,
+    #[allow(dead_code)]
     pub code: i32,
 }
 
@@ -42,8 +46,27 @@ impl Environment {
     }
 
     #[allow(dead_code)]
+    pub fn exists_directory(&self, name: &str) -> bool {
+        self.dir
+            .path()
+            .join(name)
+            .symlink_metadata()
+            .is_ok_and(|metadata| metadata.is_dir())
+    }
+
+    #[allow(dead_code)]
     pub fn read(&self, name: &str) -> Result<String> {
         Ok(std::fs::read_to_string(self.dir.path().join(name))?)
+    }
+
+    #[allow(dead_code)]
+    pub fn debug(&self) {
+        println!(
+            "{:?}",
+            std::fs::read_dir(self.dir.path())
+                .unwrap()
+                .collect::<Vec<_>>()
+        );
     }
 }
 

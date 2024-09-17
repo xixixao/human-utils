@@ -1,7 +1,7 @@
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::Parser;
 use colored::Colorize;
-use human_utils::{message_success, path_string, FAILURE, SUCCESS};
+use human_utils::{message_success, path_string, StandardOptions, FAILURE, SUCCESS};
 
 // TODO: Support `mov . something_else` and `mov something_else .`
 
@@ -13,7 +13,7 @@ Examples where `mov` differs from `mv`:
 
   Asks for confirmation:
     `mov a b` where b is an existing file,
-    `mov` will ask for confirmation and then
+    `mov` will ask for a confirmation and then
     will replace `b` with `a`, while `mv`
     will irreversibly replace `b` with `a`
     without any confirmation.
@@ -76,22 +76,22 @@ fn main() {
     human_utils::set_color_override(&args.options);
     if args.move_into || args.destination_path.ends_with(std::path::MAIN_SEPARATOR) {
         check_sources_exists(sources);
-        check_sources_already_at_destination(args, sources, destination);
+        check_sources_already_at_destination(options, sources, destination);
         let paths_at_destination = &get_paths_at_destination(sources, destination);
         human_utils::check_paths_exist_and_confirm_or_exit(options, paths_at_destination);
         let existing_ancestor = human_utils::find_existing_ancestor_directory(options, destination);
         human_utils::create_directory(options, destination);
-        rename_all(args, sources, paths_at_destination);
-        print_success_all(args, sources, paths_at_destination, existing_ancestor);
+        rename_all(options, sources, paths_at_destination);
+        print_success_all(options, sources, paths_at_destination, existing_ancestor);
     } else {
         let source = only_one_source(args, sources);
         check_source_exists(source);
-        check_source_already_at_destination(args, source, destination);
+        check_source_already_at_destination(options, source, destination);
         human_utils::check_path_exists_and_confirm_or_exit(options, destination);
         let existing_ancestor = human_utils::find_existing_ancestor_directory(options, destination);
         human_utils::create_parent_directory(options, destination);
-        rename(args, source, destination);
-        print_success(args, source, destination, existing_ancestor);
+        rename(options, source, destination);
+        print_success(options, source, destination, existing_ancestor);
     }
     std::process::exit(SUCCESS);
 }
@@ -132,7 +132,7 @@ fn check_source_exists(source: &Utf8Path) {
 }
 
 fn check_sources_already_at_destination(
-    args: &CLI,
+    options: &StandardOptions,
     sources: &Vec<&Utf8Path>,
     destination: &Utf8Path,
 ) {
@@ -143,7 +143,7 @@ fn check_sources_already_at_destination(
         let source_parent = source_canonical.parent().unwrap();
         if source_parent.eq(&destination_canonical) {
             message_success!(
-                args,
+                options,
                 "\"{}\" is already located at \"{}\"",
                 source,
                 human_utils::directory_path(destination)
@@ -157,12 +157,16 @@ fn check_sources_already_at_destination(
     }
 }
 
-fn check_source_already_at_destination(args: &CLI, source: &Utf8Path, destination: &Utf8Path) {
+fn check_source_already_at_destination(
+    options: &StandardOptions,
+    source: &Utf8Path,
+    destination: &Utf8Path,
+) {
     let source_canonical = source.canonicalize_utf8().unwrap();
     let destination_canonical = destination.canonicalize_utf8().unwrap();
     if source_canonical.eq(&destination_canonical) {
         message_success!(
-            args,
+            options,
             "\"{}\" is already located at \"{}\"",
             source,
             destination
@@ -178,14 +182,18 @@ fn get_paths_at_destination(sources: &Vec<&Utf8Path>, destination: &Utf8Path) ->
         .collect()
 }
 
-fn rename_all(args: &CLI, sources: &Vec<&Utf8Path>, paths_at_destination: &Vec<Utf8PathBuf>) {
+fn rename_all(
+    options: &StandardOptions,
+    sources: &Vec<&Utf8Path>,
+    paths_at_destination: &Vec<Utf8PathBuf>,
+) {
     for (i, source) in sources.iter().enumerate() {
         let destination_path = &paths_at_destination[i];
-        rename(args, source, &destination_path);
+        rename(options, source, &destination_path);
     }
 }
 
-fn rename(args: &CLI, from: &Utf8Path, to: &Utf8Path) {
+fn rename(options: &StandardOptions, from: &Utf8Path, to: &Utf8Path) {
     // TODO: Make sure this works correctly on Windows
     // if to.exists() && to.is_dir() {
     //     // normalize behavior between *nix and windows
@@ -193,7 +201,7 @@ fn rename(args: &CLI, from: &Utf8Path, to: &Utf8Path) {
     //             fs::remove_dir(to)?;
     //     }
     // }
-    if args.options.dry_run {
+    if options.dry_run {
         return;
     }
 
@@ -212,25 +220,25 @@ fn rename(args: &CLI, from: &Utf8Path, to: &Utf8Path) {
 const COLOR: colored::Color = colored::Color::BrightGreen;
 
 fn print_success_all(
-    args: &CLI,
+    options: &StandardOptions,
     sources: &Vec<&Utf8Path>,
     paths_at_destination: &Vec<Utf8PathBuf>,
     existing_ancestor: Option<&Utf8Path>,
 ) {
     for (i, source) in sources.iter().enumerate() {
         let destination_path = &paths_at_destination[i];
-        print_success(args, source, destination_path, existing_ancestor);
+        print_success(options, source, destination_path, existing_ancestor);
     }
 }
 
 fn print_success(
-    args: &CLI,
+    options: &StandardOptions,
     source: &Utf8Path,
     destination: &Utf8Path,
     existing_ancestor: Option<&Utf8Path>,
 ) {
     message_success!(
-        args,
+        options,
         "{} {} -> {}",
         "M".color(COLOR),
         path_string(source).bright_red(),

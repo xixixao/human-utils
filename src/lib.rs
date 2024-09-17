@@ -40,6 +40,18 @@ pub fn create_directory(options: &StandardOptions, path: &Utf8Path) {
     std::fs::create_dir_all(path).unwrap();
 }
 
+pub fn create_file(options: &StandardOptions, path: &Utf8Path, content: Option<&str>) {
+    if options.dry_run {
+        return;
+    }
+    create_parent_directory(options, path);
+    if let Some(text) = content {
+        std::fs::write(path, text).unwrap();
+    } else {
+        std::fs::File::create(path).unwrap();
+    }
+}
+
 pub fn create_parent_directory<'a>(options: &StandardOptions, path: &'a Utf8Path) -> &'a Utf8Path {
     let parent_directory = path.parent().unwrap();
     if !options.dry_run {
@@ -185,8 +197,8 @@ where
 
 #[macro_export]
 macro_rules! message_success {
-    ($command_arg:ident, $($arg:tt)*) => {
-        if !$command_arg.options.silent {
+    ($options:ident, $($arg:tt)*) => {
+        if !$options.silent {
             println!($($arg)*);
         }
     };
