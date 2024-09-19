@@ -84,6 +84,12 @@ Creates one or more files or directories.
 |`new F -- hello world` creates a file at the relative path `F` with the UTF-8 string `hello world\n`.|
 |`new F1 F2 -- hello` creates files at `F1` and `F2` with the UTF-8 string `hello\n`.|
 
+|Creating parent directories|
+|---|
+|`new D1/D2/D3/` creates directories at `D1`, `D1/D2` and `D1/D2/D3`.|
+|`new D1/D2/F` creates directories at `D1`, `D1/D2` and a file at `D1/D2/F`.|
+
+
 
 ## Three letters are too long
 
