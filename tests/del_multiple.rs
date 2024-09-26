@@ -13,9 +13,15 @@ fn removes_files() -> Result<()> {
         .answer("")
         .env(&env)
         .run()?;
-    ensure!(res.prompt == "For the following...\nfoo\nbar\n...delete all? [Y/n]");
+    eq!(
+        res.prompt,
+        "For the following...\nfoo\nbar\n...delete all? [Y/n]"
+    );
     println!("{:?}", res.output);
-    ensure!(res.output == format!("{}\n{}", "D foo".bright_red(), "D bar".bright_red()));
+    eq!(
+        res.output,
+        format!("{}\n{}", "D foo".bright_red(), "D bar".bright_red())
+    );
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo"));
     ensure!(!env.exists("bar"));
@@ -30,8 +36,14 @@ fn removes_directories() -> Result<()> {
         .answer("")
         .env(&env)
         .run()?;
-    ensure!(res.prompt == "For the following...\nfoo/\nbar/\n...delete all? [Y/n]");
-    ensure!(res.output == format!("{}\n{}", "D foo/".bright_red(), "D bar/".bright_red()));
+    eq!(
+        res.prompt,
+        "For the following...\nfoo/\nbar/\n...delete all? [Y/n]"
+    );
+    eq!(
+        res.output,
+        format!("{}\n{}", "D foo/".bright_red(), "D bar/".bright_red())
+    );
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo/lorem"));
     ensure!(!env.exists("foo"));

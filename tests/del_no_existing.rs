@@ -28,9 +28,9 @@ fn nonexistent_paths_fail() -> Result<()> {
 fn mix_of_existing_and_not_succeeds() -> Result<()> {
     let env = env(&["foo"])?;
     let res = del().args(&["foo", "bar"]).answer("").env(&env).run()?;
-    ensure!(res.prompt == "For the following...\nfoo\n...delete all existing? [Y/n]");
+    eq!(res.prompt, "For the following...\nfoo\n...delete all existing? [Y/n]");
     ensure!(res.error.starts_with("\"bar\" error:"));
-    ensure!(res.output == "D foo");
+    eq!(res.output,  "D foo");
     ensure!(res.code == SUCCESS);
     Ok(())
 }

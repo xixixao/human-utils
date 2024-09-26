@@ -1,6 +1,6 @@
 use anyhow::{ensure, Ok, Result};
 use colored::Colorize;
-use human_utils::{FAILURE, SUCCESS};
+use human_utils::SUCCESS;
 
 mod utils;
 
@@ -10,9 +10,12 @@ use crate::utils::{env, new};
 fn creates_directories_for_file() -> Result<()> {
     let env = env(&[])?;
     let res = new().args(&["c/b/a"]).env(&env).run()?;
-    ensure!(res.output == format!("{} {}", "N".bright_green(), "c/b/a".bright_green(),));
+    eq!(
+        res.output,
+        format!("{} {}", "N".bright_green(), "c/b/a".bright_green(),)
+    );
     ensure!(res.code == SUCCESS);
-    ensure!(env.read("c/b/a")? == "");
+    eq!(env.read("c/b/a")?, "");
     Ok(())
 }
 
@@ -20,7 +23,10 @@ fn creates_directories_for_file() -> Result<()> {
 fn creates_directories_for_directory() -> Result<()> {
     let env = env(&[])?;
     let res = new().args(&["c/b/a/"]).env(&env).run()?;
-    ensure!(res.output == format!("{} {}", "N".bright_green(), "c/b/a/".bright_green(),));
+    eq!(
+        res.output,
+        format!("{} {}", "N".bright_green(), "c/b/a/".bright_green(),)
+    );
     ensure!(res.code == SUCCESS);
     ensure!(env.exists_directory("c/b/a"));
     Ok(())

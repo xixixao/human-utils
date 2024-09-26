@@ -19,3 +19,4 @@ iter-read = "0.3.1"
 regex = { version = "1.7.0", features = ["std"], default-features = false }
 rstest = "0.16.0"
 tempfile = "3.3.0"
+pretty_assertions = "1.4.1"

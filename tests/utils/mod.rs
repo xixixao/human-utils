@@ -60,6 +60,11 @@ impl Environment {
     }
 
     #[allow(dead_code)]
+    pub fn write(&self, name: &str, content: &str) -> Result<()> {
+        Ok(std::fs::write(self.dir.path().join(name), content)?)
+    }
+
+    #[allow(dead_code)]
     pub fn debug(&self) {
         println!(
             "{:?}",
@@ -177,4 +182,11 @@ fn read_until(delimiter: char, prompt: &mut String, stdout: &mut impl Read) -> R
     std::io::BufReader::new(stdout).read_until(delimiter as u8, &mut buf)?;
     prompt.push_str(std::str::from_utf8(&buf)?);
     Ok(())
+}
+
+#[macro_export]
+macro_rules! eq {
+    ($($tt:tt)*) => {
+        pretty_assertions::assert_eq!($($tt)*)
+    };
 }

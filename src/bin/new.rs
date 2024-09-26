@@ -1,6 +1,11 @@
-use std::{io::Write, ops::Deref};
+use std::{
+    collections::BTreeSet,
+    io::Write,
+    ops::Deref,
+    path::{Path, PathBuf},
+};
 
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::{Utf8Ancestors, Utf8Path, Utf8PathBuf};
 use clap::{ArgAction, Args, Parser};
 use colored::{ColoredString, Colorize};
 use human_utils::{message_success, LazyPath, StandardOptions, FAILURE, SUCCESS};
@@ -79,89 +84,94 @@ fn main() {
 
     human_utils::set_color_override(&options);
 
-    check_conflicts(&options, &directory_paths);
+    check_argument_conflicts(&directory_paths, &file_paths);
 
-    for file_path in file_paths {
-        let path = &Utf8Path::new(&file_path);
-        human_utils::create_file(&options, path, None);
-        print_success(&options, path, None);
+    for path in directory_paths {
+        std::fs::create_dir_all(&path).unwrap();
+        print_success(&options, &human_utils::directory_path(&path), None);
     }
 
-    for directory_path in directory_paths {
-        let path = &Utf8Path::new(&directory_path);
-        std::fs::create_dir_all(path).unwrap();
-        print_success(&options, &human_utils::directory_path(path), None);
+    let content = if content.is_empty() {
+        None
+    } else {
+        Some(content.join(" ") + "\n")
+    };
+    for path in file_paths {
+        human_utils::create_file(&options, &path, content.as_deref());
+        print_success(&options, &path, None);
     }
-
-    // if args.directory || args.path.ends_with(std::path::MAIN_SEPARATOR) {
-    //     check_file_option_not_used(args, path);
-    //     check_empty_directory_exists_already(args, path);
-    //     // human_utils::check_path_exists_and_confirm_or_exit(options, path);
-    //     // delete_directory_at_path(args, path);
-    //     // let existing_ancestor = human_utils::find_existing_ancestor_directory(options, path);
-    //     // human_utils::create_directory(options, path);
-    //     // let paths = &join_paths(path, file_names);
-    //     // create_files_with_content(args, paths);
-    //     // print_directory_success(args, path, existing_ancestor);
-    //     // print_files_success(args, paths, existing_ancestor);
-    // } else {
-    //     // let parent_directory = path.parent().unwrap();
-    //     // check_directory_exists_and_confirm_or_exit(options, parent_directory);
-    //     // let paths = &[
-    //     //     vec![path.to_owned()],
-    //     //     join_paths(parent_directory, file_names),
-    //     // ]
-    //     // .concat();
-    //     // check_empty_files_exist_already(args, paths);
-    //     // human_utils::check_paths_exist_and_confirm_or_exit(options, paths);
-    //     // let existing_ancestor = human_utils::find_existing_ancestor_directory(options, path);
-    //     // // delete_file_at_path(args, parent_directory);
-    //     // delete_directories_at_paths(args, paths);
-    //     // human_utils::create_directory(options, parent_directory);
-
-    //     // create_files_with_content(args, paths);
-    //     // print_files_success(args, paths, existing_ancestor);
-    // };
     std::process::exit(SUCCESS);
 }
 
-// TODO: Get all the directories,
-// and all the files
-// and check that they are mutually exclusive
-// otherwise do nothing and print error.
-fn check_conflicts(options: &StandardOptions, directories: &Vec<String>) {
-    let mut all_sources_already_at_destination = true;
-    for directory_path in directories {
-        if let Ok(metadata) = Utf8Path::new(directory_path).symlink_metadata() {
-            let file_type = if metadata.is_dir() {
-                "directory"
-            } else {
-                "file"
-            };
-            // #[tested(rem_basic)]
-            // print!("Delete {} \"{}\"? [Y/n]", file_type, path);
-        }
-        // if source_parent.eq(&destination_canonical) {
-        //     message_success!(
-        //         options,
-        //         "\"{}\" is already located at \"{}\"",
-        //         source,
-        //         human_utils::directory_path(destination)
-        //     );
-        // } else {
-        //     all_sources_already_at_destination = false;
-        // }
+fn check_argument_conflicts(
+    directory_paths: &BTreeSet<Utf8PathBuf>,
+    file_paths: &BTreeSet<Utf8PathBuf>,
+) {
+    let all_directory_paths: BTreeSet<_> = directory_paths
+        .iter()
+        .flat_map(|path| path.ancestors())
+        .chain(file_paths.iter().flat_map(|path| {
+            path.parent()
+                .map(|parent| parent.ancestors())
+                .into_iter()
+                .flatten()
+        }))
+        .filter(|path| path != "")
+        .collect();
+
+    let file_path_refs = file_paths.iter().map(|path| path.as_path()).collect();
+    let clashing: BTreeSet<_> = all_directory_paths.intersection(&file_path_refs).collect();
+
+    if !clashing.is_empty() {
+        eprintln!(
+            "Error: Cannot create both file and a directory at:\n{}",
+            clashing.into_iter().join("\n")
+        );
+        std::process::exit(FAILURE);
     }
-    // all_sources_already_at_destination
+
+    // let mut all_sources_already_at_destination = true;
+    // for directory_path in directories {
+    //     if let Ok(metadata) = Utf8Path::new(directory_path).symlink_metadata() {
+    //         let file_type = if metadata.is_dir() {
+    //             "directory"
+    //         } else {
+    //             "file"
+    //         };
+    //         // #[tested(rem_basic)]
+    //         // print!("Delete {} \"{}\"? [Y/n]", file_type, path);
+    //     }
+    //     // if source_parent.eq(&destination_canonical) {
+    //     //     message_success!(
+    //     //         options,
+    //     //         "\"{}\" is already located at \"{}\"",
+    //     //         source,
+    //     //         human_utils::directory_path(destination)
+    //     //     );
+    //     // } else {
+    //     //     all_sources_already_at_destination = false;
+    //     // }
+    // }
+    // // all_sources_already_at_destination
 }
 
-fn combine_input_paths(names: Names) -> (Vec<String>, Vec<String>) {
+fn combine_input_paths(names: Names) -> (BTreeSet<Utf8PathBuf>, BTreeSet<Utf8PathBuf>) {
     let Names {
         paths,
         file,
         directory,
     } = names;
-    let (mut directory_paths, mut file_paths): (Vec<_>, Vec<_>) =
+    for path in &file {
+        if path.ends_with(std::path::MAIN_SEPARATOR) {
+            eprintln!(
+                "Error: File path \"{}\" cannot end with a `{}` when `--file` option is used.",
+                path,
+                std::path::MAIN_SEPARATOR
+            );
+            std::process::exit(FAILURE);
+        }
+    }
+    let (mut directory_paths, mut file_paths): (BTreeSet<_>, BTreeSet<_>) =
         paths.into_iter().partition_map(|path| {
             if path.ends_with(std::path::MAIN_SEPARATOR) {
                 Either::Left(path.trim_end_matches(std::path::MAIN_SEPARATOR).to_string())
@@ -171,7 +181,10 @@ fn combine_input_paths(names: Names) -> (Vec<String>, Vec<String>) {
         });
     directory_paths.extend(directory);
     file_paths.extend(file);
-    (directory_paths, file_paths)
+    (
+        directory_paths.into_iter().map(Utf8PathBuf::from).collect(),
+        file_paths.into_iter().map(Utf8PathBuf::from).collect(),
+    )
 }
 
 // fn join_paths(parent: &Utf8Path, children: &Vec<String>) -> Vec<Utf8PathBuf> {
@@ -214,7 +227,7 @@ fn combine_input_paths(names: Names) -> (Vec<String>, Vec<String>) {
 //         return;
 //     }
 
-//     if args.options.force {
+//     if options.force {
 //         return;
 //     }
 
@@ -237,7 +250,7 @@ fn combine_input_paths(names: Names) -> (Vec<String>, Vec<String>) {
 //         return;
 //     }
 
-//     if args.options.force {
+//     if options.force {
 //         return;
 //     }
 
@@ -262,7 +275,7 @@ fn combine_input_paths(names: Names) -> (Vec<String>, Vec<String>) {
 // }
 
 // fn delete_directories_at_paths(args: &Args, paths: &Vec<Utf8PathBuf>) {
-//     if args.options.dry_run {
+//     if options.dry_run {
 //         return;
 //     }
 
@@ -272,7 +285,7 @@ fn combine_input_paths(names: Names) -> (Vec<String>, Vec<String>) {
 // }
 
 // fn delete_directory_at_path(args: &Args, path: &Utf8Path) {
-//     if args.options.dry_run {
+//     if options.dry_run {
 //         return;
 //     }
 
@@ -284,7 +297,7 @@ fn combine_input_paths(names: Names) -> (Vec<String>, Vec<String>) {
 // }
 
 // fn create_files_with_content<Path: AsRef<Utf8Path>>(args: &Args, paths: &[Path]) {
-//     if args.options.dry_run {
+//     if options.dry_run {
 //         return;
 //     }
 
@@ -314,7 +327,7 @@ fn combine_input_paths(names: Names) -> (Vec<String>, Vec<String>) {
 //     paths: &[Path],
 //     existing_ancestor: Option<&Utf8Path>,
 // ) {
-//     if args.options.silent {
+//     if options.silent {
 //         return;
 //     }
 //     for file_path in paths {

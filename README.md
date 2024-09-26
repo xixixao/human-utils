@@ -37,18 +37,31 @@ Scenario:
 
 ## Principles
 
-**Ask for confirmation before any irreversible action by default**
+### By default ask for confirmation before any irreversible action
+
 Irreversible actions include:
 
 - deleting a file or a directory
 - overwriting a file with different contents
 - overwriting a directory with different files contents
 
-**Do not change behavior based on the current state of the file tree**
+### Do not change behavior based on the current state of the file tree
+
 The UNIX `mv a b` command performs a very different operation based on whether `b` does not exist or is a directory or a file (a move or a rename with a possible overwrite). In `human-utils` you instead choose which operation to perform (either via the path separator suffix or via explicit options).
 
-**Create directories on demand**
-If a directory is needed to perform any command, but it doesn't exist, it will get created. This applies to multiple nested directories as well. The behavior is similar to running the UNIX command `mkdir -p` with the right argument before every operation.
+The only change in behavior based on the state of the file tree in `human-utils` is whether you will be asked to proceed or not.
+
+### Create directories on demand
+
+If a directory is needed to perform any command, but it doesn't exist, it will be created. This applies to multiple nested directories as well. The behavior is similar to running the UNIX command `mkdir -p` with the appropriate argument before every operation.
+
+### Act idempotently
+
+Creating a file that is created already doesn't error or prompt.
+Creating a file with some contents, if the file already has those contents, doesn't error or prompt.
+Creating a directory if a directory already exists doesn't error or prompt.
+This also applies to changes made by moving or copying files.
+The command output reflects these uncommon situations.
 
 ## Commands
 
@@ -83,6 +96,7 @@ Creates one or more files or directories.
 |---|
 |`new F -- hello world` creates a file at the relative path `F` with the UTF-8 string `hello world\n`.|
 |`new F1 F2 -- hello` creates files at `F1` and `F2` with the UTF-8 string `hello\n`.|
+|`new F -- ''` asks for a confirmation if a non-empty file exists at `F` and erases it.|
 
 |Creating parent directories|
 |---|
