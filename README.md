@@ -55,14 +55,6 @@ The only change in behavior based on the state of the file tree in `human-utils`
 
 If a directory is needed to perform any command, but it doesn't exist, it will be created. This applies to multiple nested directories as well. The behavior is similar to running the UNIX command `mkdir -p` with the appropriate argument before every operation.
 
-### Act idempotently
-
-Creating a file that is created already doesn't error or prompt.
-Creating a file with some contents, if the file already has those contents, doesn't error or prompt.
-Creating a directory if a directory already exists doesn't error or prompt.
-This also applies to changes made by moving or copying files.
-The command output reflects these uncommon situations.
-
 ## Commands
 
 ### `new`

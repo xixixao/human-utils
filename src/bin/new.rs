@@ -1,17 +1,10 @@
-use std::{
-    collections::BTreeSet,
-    io::Write,
-    ops::Deref,
-    path::{Path, PathBuf},
-};
+use std::collections::BTreeSet;
 
-use camino::{Utf8Ancestors, Utf8Path, Utf8PathBuf};
+use camino::{Utf8Path, Utf8PathBuf};
 use clap::{ArgAction, Args, Parser};
-use colored::{ColoredString, Colorize};
-use human_utils::{message_success, LazyPath, StandardOptions, FAILURE, SUCCESS};
+use colored::Colorize;
+use human_utils::{message_success, StandardOptions, FAILURE, SUCCESS};
 use itertools::{Either, Itertools};
-
-const SUCCESS_COLOR: colored::Color = colored::Color::BrightGreen;
 
 const DETAILS: &str = "
 Basic examples:
@@ -27,12 +20,6 @@ Basic examples:
 
 As part of `human-utils`, `new` asks for confirmation before\
 overwriting any file or directory.";
-
-const PATH_HELP: &str = const_format::formatcp!(
-    "The path including the name of the new file or directory.
-To create a directory end the PATH in {} or use the -d option",
-    std::path::MAIN_SEPARATOR
-);
 
 const FILE_HELP: &str = const_format::formatcp!(
     "Relative or absolute path of a file to create. Errors if FILE ends in {}",
@@ -80,18 +67,27 @@ fn main() {
         options,
     } = CLI::parse();
 
-    let (directory_paths, file_paths) = combine_input_paths(names);
+    let (all_directory_paths, directory_paths, file_paths) = combine_input_paths(names);
 
     human_utils::set_color_override(&options);
 
-    check_argument_conflicts(&directory_paths, &file_paths);
+    check_argument_conflicts(&all_directory_paths, &file_paths);
+
+    let (clashing_directories, clashing_files) =
+        check_conflicts(&options, &all_directory_paths, &file_paths);
+
+    delete_clashing(&options, &clashing_directories, &clashing_files);
 
     for path in directory_paths {
-        std::fs::create_dir_all(&path).unwrap();
+        if !options.dry_run {
+            std::fs::create_dir_all(&path).unwrap();
+        }
         print_success(&options, &human_utils::directory_path(&path), None);
     }
 
     let content = if content.is_empty() {
+        None
+    } else if content.len() == 1 && content[0] == "" {
         None
     } else {
         Some(content.join(" ") + "\n")
@@ -103,24 +99,32 @@ fn main() {
     std::process::exit(SUCCESS);
 }
 
+fn delete_clashing(
+    options: &StandardOptions,
+    clashing_directories: &[CheckedPath],
+    clashing_files: &[CheckedPath],
+) {
+    if options.dry_run {
+        return;
+    }
+
+    for CheckedPath { path, .. } in clashing_directories {
+        std::fs::remove_file(path).unwrap();
+    }
+    for CheckedPath { path, metadata } in clashing_files {
+        if metadata.is_dir() {
+            std::fs::remove_dir_all(path).unwrap();
+        } else {
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+}
+
 fn check_argument_conflicts(
-    directory_paths: &BTreeSet<Utf8PathBuf>,
+    all_directory_paths: &BTreeSet<Utf8PathBuf>,
     file_paths: &BTreeSet<Utf8PathBuf>,
 ) {
-    let all_directory_paths: BTreeSet<_> = directory_paths
-        .iter()
-        .flat_map(|path| path.ancestors())
-        .chain(file_paths.iter().flat_map(|path| {
-            path.parent()
-                .map(|parent| parent.ancestors())
-                .into_iter()
-                .flatten()
-        }))
-        .filter(|path| path != "")
-        .collect();
-
-    let file_path_refs = file_paths.iter().map(|path| path.as_path()).collect();
-    let clashing: BTreeSet<_> = all_directory_paths.intersection(&file_path_refs).collect();
+    let clashing: BTreeSet<_> = all_directory_paths.intersection(file_paths).collect();
 
     if !clashing.is_empty() {
         eprintln!(
@@ -129,33 +133,15 @@ fn check_argument_conflicts(
         );
         std::process::exit(FAILURE);
     }
-
-    // let mut all_sources_already_at_destination = true;
-    // for directory_path in directories {
-    //     if let Ok(metadata) = Utf8Path::new(directory_path).symlink_metadata() {
-    //         let file_type = if metadata.is_dir() {
-    //             "directory"
-    //         } else {
-    //             "file"
-    //         };
-    //         // #[tested(rem_basic)]
-    //         // print!("Delete {} \"{}\"? [Y/n]", file_type, path);
-    //     }
-    //     // if source_parent.eq(&destination_canonical) {
-    //     //     message_success!(
-    //     //         options,
-    //     //         "\"{}\" is already located at \"{}\"",
-    //     //         source,
-    //     //         human_utils::directory_path(destination)
-    //     //     );
-    //     // } else {
-    //     //     all_sources_already_at_destination = false;
-    //     // }
-    // }
-    // // all_sources_already_at_destination
 }
 
-fn combine_input_paths(names: Names) -> (BTreeSet<Utf8PathBuf>, BTreeSet<Utf8PathBuf>) {
+fn combine_input_paths(
+    names: Names,
+) -> (
+    BTreeSet<Utf8PathBuf>,
+    BTreeSet<Utf8PathBuf>,
+    BTreeSet<Utf8PathBuf>,
+) {
     let Names {
         paths,
         file,
@@ -171,7 +157,7 @@ fn combine_input_paths(names: Names) -> (BTreeSet<Utf8PathBuf>, BTreeSet<Utf8Pat
             std::process::exit(FAILURE);
         }
     }
-    let (mut directory_paths, mut file_paths): (BTreeSet<_>, BTreeSet<_>) =
+    let (mut directory_path_strings, mut file_path_strings): (BTreeSet<_>, BTreeSet<_>) =
         paths.into_iter().partition_map(|path| {
             if path.ends_with(std::path::MAIN_SEPARATOR) {
                 Either::Left(path.trim_end_matches(std::path::MAIN_SEPARATOR).to_string())
@@ -179,176 +165,81 @@ fn combine_input_paths(names: Names) -> (BTreeSet<Utf8PathBuf>, BTreeSet<Utf8Pat
                 Either::Right(path)
             }
         });
-    directory_paths.extend(directory);
-    file_paths.extend(file);
-    (
-        directory_paths.into_iter().map(Utf8PathBuf::from).collect(),
-        file_paths.into_iter().map(Utf8PathBuf::from).collect(),
-    )
+    directory_path_strings.extend(directory);
+    file_path_strings.extend(file);
+    let directory_paths: BTreeSet<_> = directory_path_strings
+        .iter()
+        .map(Utf8PathBuf::from)
+        .collect();
+    let file_paths: BTreeSet<_> = file_path_strings.iter().map(Utf8PathBuf::from).collect();
+
+    let all_directory_paths: BTreeSet<_> = directory_paths
+        .iter()
+        .flat_map(|path| path.ancestors())
+        .map(|path| path.to_owned())
+        .chain(file_paths.iter().flat_map(|path| {
+            path.parent()
+                .map(|parent| parent.ancestors())
+                .into_iter()
+                .flatten()
+                .map(|path| path.to_owned())
+        }))
+        .filter(|path| path != "")
+        .collect();
+
+    (all_directory_paths, directory_paths, file_paths)
 }
 
-// fn join_paths(parent: &Utf8Path, children: &Vec<String>) -> Vec<Utf8PathBuf> {
-//     children.iter().map(|name| parent.join(name)).collect()
-// }
+struct CheckedPath {
+    path: Utf8PathBuf,
+    metadata: std::fs::Metadata,
+}
 
-// fn check_directory_exists_and_confirm_or_exit(
-//     options: &human_utils::StandardOptions,
-//     path: &Utf8Path,
-// ) {
-//     if options.force {
-//         return;
-//     }
+fn check_conflicts(
+    options: &StandardOptions,
+    all_directory_paths: &BTreeSet<Utf8PathBuf>,
+    file_paths: &BTreeSet<Utf8PathBuf>,
+) -> (Vec<CheckedPath>, Vec<CheckedPath>) {
+    let clashing_directories = all_directory_paths
+        .iter()
+        .filter_map(|path| {
+            path.symlink_metadata()
+                .ok()
+                .filter(|metadata| !metadata.is_dir())
+                .map(|metadata| CheckedPath {
+                    path: path.clone(),
+                    metadata,
+                })
+        })
+        .collect::<Vec<_>>();
 
-//     if let Ok(metadata) = path.symlink_metadata() {
-//         if !metadata.is_dir() {
-//             print!(
-//                 "A file \"{}\" exists, replace it with a directory? [Y/n]",
-//                 path
-//             );
-//             human_utils::confirm_or_exit();
-//         }
-//     }
-// }
+    let clasing_files = file_paths
+        .iter()
+        .filter_map(|path| {
+            path.symlink_metadata()
+                .ok()
+                .filter(|metadata| metadata.is_dir() || metadata.len() > 0)
+                .map(|metadata| CheckedPath {
+                    path: path.clone(),
+                    metadata,
+                })
+        })
+        .collect::<Vec<_>>();
 
-// fn check_file_option_not_used(args: &Args, path: &LazyPath) {
-//     if !args.file {
-//         return;
-//     }
-//     eprintln!(
-//         "Error: File path \"{}\" cannot end with a {} when --file option is used.",
-//         path,
-//         std::path::MAIN_SEPARATOR
-//     );
-//     std::process::exit(FAILURE);
-// }
+    if options.force {
+        return (clashing_directories, clasing_files);
+    }
 
-// fn check_empty_directory_exists_already(args: &Args, path: &mut LazyPath) {
-//     if !args.content.is_empty() {
-//         return;
-//     }
+    human_utils::ask_to_overwrite(
+        &clashing_directories
+            .iter()
+            .chain(clasing_files.iter())
+            .map(|checked| &checked.path)
+            .collect(),
+    );
 
-//     if options.force {
-//         return;
-//     }
-
-//     if let Ok(metadata) = path.metadata() {
-//         if metadata.is_dir() && path.path.read_dir().unwrap().next().is_none() {
-//             message_success!(
-//                 args,
-//                 "{}",
-//                 format!("Empty directory \"{}\" already exists", path).color(SUCCESS_COLOR)
-//             );
-//             if args.file_names.is_empty() {
-//                 std::process::exit(SUCCESS);
-//             }
-//         }
-//     }
-// }
-
-// fn check_empty_files_exist_already(args: &Args, paths: &Vec<Utf8PathBuf>) {
-//     if !args.content.is_empty() {
-//         return;
-//     }
-
-//     if options.force {
-//         return;
-//     }
-
-//     let mut all_exist_already = true;
-
-//     for path in paths {
-//         if let Ok(metadata) = path.symlink_metadata() {
-//             if metadata.is_file() && metadata.len() == 0 {
-//                 message_success!(
-//                     args,
-//                     "{}",
-//                     format!("Empty file \"{}\" already exists", path).color(SUCCESS_COLOR)
-//                 );
-//                 continue;
-//             }
-//         }
-//         all_exist_already = false;
-//     }
-//     if all_exist_already {
-//         std::process::exit(SUCCESS);
-//     }
-// }
-
-// fn delete_directories_at_paths(args: &Args, paths: &Vec<Utf8PathBuf>) {
-//     if options.dry_run {
-//         return;
-//     }
-
-//     for path in paths {
-//         delete_directory_at_path(args, path);
-//     }
-// }
-
-// fn delete_directory_at_path(args: &Args, path: &Utf8Path) {
-//     if options.dry_run {
-//         return;
-//     }
-
-//     if let Ok(metadata) = path.symlink_metadata() {
-//         if metadata.is_dir() {
-//             std::fs::remove_dir_all(path).unwrap();
-//         }
-//     }
-// }
-
-// fn create_files_with_content<Path: AsRef<Utf8Path>>(args: &Args, paths: &[Path]) {
-//     if options.dry_run {
-//         return;
-//     }
-
-//     let contents = args.content.join(" ");
-//     for file_path in paths {
-//         std::fs::write(file_path.as_ref(), &contents).unwrap();
-//     }
-// }
-
-// fn print_directory_success(args: &Args, path: &Utf8Path, existing_ancestor: Option<&Utf8Path>) {
-//     message_success!(
-//         args,
-//         "{}",
-//         join_colored(
-//             "N ".color(SUCCESS_COLOR),
-//             human_utils::color_new(
-//                 &human_utils::directory_path(path),
-//                 existing_ancestor,
-//                 SUCCESS_COLOR
-//             )
-//         )
-//     );
-// }
-
-// fn print_files_success<Path: AsRef<Utf8Path>>(
-//     args: &Args,
-//     paths: &[Path],
-//     existing_ancestor: Option<&Utf8Path>,
-// ) {
-//     if options.silent {
-//         return;
-//     }
-//     for file_path in paths {
-//         println!(
-//             "{}",
-//             join_colored(
-//                 "N ".color(SUCCESS_COLOR),
-//                 human_utils::color_new(file_path.as_ref(), existing_ancestor, SUCCESS_COLOR)
-//             )
-//         );
-//     }
-// }
-
-// fn join_colored(first: ColoredString, second: ColoredString) -> ColoredString {
-//     if let Some(color) = first.fgcolor() {
-//         if Some(color) == second.fgcolor() {
-//             return format!("{}{}", first.clear(), second.clear()).color(color);
-//         }
-//     }
-//     format!("{}{}", first, second).normal()
-// }
+    (clashing_directories, clasing_files)
+}
 
 const COLOR: colored::Color = colored::Color::BrightGreen;
 

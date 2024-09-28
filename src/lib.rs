@@ -2,7 +2,7 @@ mod lazy_path;
 
 pub use lazy_path::LazyPath;
 
-use std::io::Write;
+use std::{io::Write, ops::Deref};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use colored::{ColoredString, Colorize};
@@ -84,11 +84,15 @@ pub fn check_paths_exist_and_confirm_or_exit(options: &StandardOptions, paths: &
         return;
     }
     let clashing: Vec<_> = paths.iter().filter(|path| path.exists()).collect();
+    ask_to_overwrite(&clashing);
+}
+
+pub fn ask_to_overwrite<P: AsRef<Utf8Path>>(clashing: &Vec<P>) {
     if clashing.is_empty() {
         return;
     }
     if let [path] = clashing.as_slice() {
-        ask_for_single_path(&path);
+        ask_for_single_path(path.as_ref());
     } else {
         ask_for_multiple_paths(&clashing);
     }
@@ -114,11 +118,11 @@ fn ask_for_single_path(path: &Utf8Path) {
     print!("Overwrite {} \"{}\"? [Y/n]", file_type, path);
 }
 
-fn ask_for_multiple_paths(paths: &Vec<&Utf8PathBuf>) {
+pub fn ask_for_multiple_paths<P: AsRef<Utf8Path>>(paths: &Vec<P>) {
     println!("For the following...");
     for path in paths {
-        let metadata = path.symlink_metadata().unwrap();
-        print_path(path, &metadata);
+        let metadata = path.as_ref().symlink_metadata().unwrap();
+        print_path(path.as_ref(), &metadata);
     }
     print!("...overwrite all? [Y/n]");
 }
