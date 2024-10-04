@@ -1,4 +1,5 @@
 use anyhow::{ensure, Ok, Result};
+use colored::Colorize;
 use regex::Regex;
 
 pub mod utils;
@@ -28,9 +29,12 @@ fn nonexistent_paths_fail() -> Result<()> {
 fn mix_of_existing_and_not_succeeds() -> Result<()> {
     let env = env(&["foo"])?;
     let res = del().args(&["foo", "bar"]).answer("").env(&env).run()?;
-    eq!(res.prompt, "For the following...\nfoo\n...delete all existing? [Y/n]");
+    eq!(
+        res.prompt,
+        "For the following...\nfoo\n...delete all existing? [Y/n]"
+    );
     ensure!(res.error.starts_with("\"bar\" error:"));
-    eq!(res.output,  "D foo");
+    eq!(res.output, format!("{}", "D foo".bright_red()));
     ensure!(res.code == SUCCESS);
     Ok(())
 }
