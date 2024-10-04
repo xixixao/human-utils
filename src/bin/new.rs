@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::{ArgAction, Args, Parser};
@@ -82,7 +82,7 @@ fn main() {
         if !options.dry_run {
             std::fs::create_dir_all(&path).unwrap();
         }
-        print_success(&options, &human_utils::directory_path(&path), None);
+        print_success(&options, &human_utils::directory_path(&path), true, None);
     }
 
     let content = if content.is_empty() {
@@ -94,28 +94,26 @@ fn main() {
     };
     for path in file_paths {
         human_utils::create_file(&options, &path, content.as_deref());
-        print_success(&options, &path, None);
+        print_success(&options, &path, !clashing_files.contains_key(&path), None);
     }
     std::process::exit(SUCCESS);
 }
 
 fn delete_clashing(
     options: &StandardOptions,
-    clashing_directories: &[CheckedPath],
-    clashing_files: &[CheckedPath],
+    clashing_directories: &BTreeMap<Utf8PathBuf, std::fs::Metadata>,
+    clashing_files: &BTreeMap<Utf8PathBuf, std::fs::Metadata>,
 ) {
     if options.dry_run {
         return;
     }
 
-    for CheckedPath { path, .. } in clashing_directories {
+    for (path, _) in clashing_directories {
         std::fs::remove_file(path).unwrap();
     }
-    for CheckedPath { path, metadata } in clashing_files {
+    for (path, metadata) in clashing_files {
         if metadata.is_dir() {
             std::fs::remove_dir_all(path).unwrap();
-        } else {
-            std::fs::remove_file(path).unwrap();
         }
     }
 }
@@ -190,55 +188,50 @@ fn combine_input_paths(
     (all_directory_paths, directory_paths, file_paths)
 }
 
-struct CheckedPath {
-    path: Utf8PathBuf,
-    metadata: std::fs::Metadata,
-}
-
 fn check_conflicts(
     options: &StandardOptions,
     all_directory_paths: &BTreeSet<Utf8PathBuf>,
     file_paths: &BTreeSet<Utf8PathBuf>,
-) -> (Vec<CheckedPath>, Vec<CheckedPath>) {
+) -> (
+    BTreeMap<Utf8PathBuf, std::fs::Metadata>,
+    BTreeMap<Utf8PathBuf, std::fs::Metadata>,
+) {
     let clashing_directories = all_directory_paths
         .iter()
         .filter_map(|path| {
             path.symlink_metadata()
                 .ok()
                 .filter(|metadata| !metadata.is_dir())
-                .map(|metadata| CheckedPath {
-                    path: path.clone(),
-                    metadata,
-                })
+                .map(|metadata| (path.clone(), metadata))
         })
-        .collect::<Vec<_>>();
+        .collect::<BTreeMap<_, _>>();
 
-    let clasing_files = file_paths
+    let clashing_files = file_paths
         .iter()
         .filter_map(|path| {
             path.symlink_metadata()
                 .ok()
-                .filter(|metadata| metadata.is_dir() || metadata.len() > 0)
-                .map(|metadata| CheckedPath {
-                    path: path.clone(),
-                    metadata,
-                })
+                .map(|metadata| (path.clone(), metadata))
         })
-        .collect::<Vec<_>>();
+        .collect::<BTreeMap<_, _>>();
 
     if options.force {
-        return (clashing_directories, clasing_files);
+        return (clashing_directories, clashing_files);
     }
 
     human_utils::ask_to_overwrite(
         &clashing_directories
-            .iter()
-            .chain(clasing_files.iter())
-            .map(|checked| &checked.path)
+            .keys()
+            .chain(
+                clashing_files
+                    .iter()
+                    .filter(|(_, metadata)| metadata.is_dir() || metadata.len() > 0)
+                    .map(|(path, _)| path),
+            )
             .collect(),
     );
 
-    (clashing_directories, clasing_files)
+    (clashing_directories, clashing_files)
 }
 
 const COLOR: colored::Color = colored::Color::BrightGreen;
@@ -246,12 +239,13 @@ const COLOR: colored::Color = colored::Color::BrightGreen;
 fn print_success(
     options: &StandardOptions,
     created: &Utf8Path,
+    entirely_new: bool,
     existing_ancestor: Option<&Utf8Path>,
 ) {
     message_success!(
         options,
         "{} {}",
-        "N".color(COLOR),
+        (if entirely_new { "N" } else { "M" }).color(COLOR),
         human_utils::color_new(created, existing_ancestor, COLOR)
     );
 }
