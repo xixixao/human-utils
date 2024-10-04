@@ -59,3 +59,22 @@ fn prompts_to_erase_nested_file() -> Result<()> {
     eq!(env.read("a/b/c")?, "");
     Ok(())
 }
+
+#[test]
+fn noops_on_directory_that_already_exists() -> Result<()> {
+    let env = env(&["a/b"])?;
+    let res = new().args(&["a/"]).env(&env).run()?;
+    eq!(res.output, format!("Directory \"a\" already exists"));
+    ensure!(res.code == SUCCESS);
+    Ok(())
+}
+
+#[test]
+fn noops_on_file_that_already_exists() -> Result<()> {
+    let env = env(&["a"])?;
+    env.write("a", "")?;
+    let res = new().args(&["a"]).env(&env).run()?;
+    eq!(res.output, format!("File \"a\" already exists"));
+    ensure!(res.code == SUCCESS);
+    Ok(())
+}

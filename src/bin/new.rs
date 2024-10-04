@@ -79,6 +79,11 @@ fn main() {
     delete_clashing(&options, &clashing_with_directories, &clashing_with_files);
 
     for path in directory_paths {
+        let clashing = clashing_with_directories.get(&path);
+        if clashing.map_or(false, |metadata| metadata.is_dir()) {
+            message_success!(options, "Directory \"{}\" already exists", path);
+            continue;
+        }
         if !options.dry_run {
             std::fs::create_dir_all(&path).unwrap();
         }
@@ -102,11 +107,18 @@ fn main() {
         Some(content.join(" ") + "\n")
     };
     for path in file_paths {
+        let clashing = clashing_with_files.get(&path);
+        if content.is_none()
+            && clashing.map_or(false, |metadata| !metadata.is_dir() && metadata.len() == 0)
+        {
+            message_success!(options, "File \"{}\" already exists", path);
+            continue;
+        }
         human_utils::create_file(&options, &path, content.as_deref());
         print_success(
             &options,
             &path,
-            clashing_with_files.get(&path),
+            clashing,
             find_existing_ancestor_directory_for_printout(
                 &options,
                 &path,
