@@ -23,11 +23,11 @@ Scenario:
 <!-- prettier-ignore -->
 | coreutils  | human-utils | outcome  |
 | --- | --- | --- |
-| `touch hockey`  | `new hockey` | <code style="color: green">N root/hockey</code> |
-| `mkdir rocks`<br/>`touch rocks/ruby` | `new rocks/ruby` | <code style="color: green">N root/rocks/ruby</code>    |
-| `mkdir rocks`<br/>`echo 💎 > rocks/ruby`     | `new rocks/ruby -- 💎`     | <code style="color: green">N root/rocks/ruby</code><br />&nbsp;&nbsp;`text: 💎` |
-| `mkdir rocks` | `new rocks/` | <code style="color: green">N root/rocks/</code> |
-| `mkdir rocks`<br />`cd rocks` | `c rocks`[*](#change-directory-integration) | <code style="color: green">N root/rocks/</code><br />&nbsp;&nbsp;`current working directory` |
+| `touch hockey`  | `new hockey` | <code style="color: green">N hockey</code> |
+| `mkdir rocks`<br/>`touch rocks/ruby` | `new rocks/ruby` | <code style="color: green">N rocks/ruby</code>    |
+| `mkdir rocks`<br/>`echo 💎 > rocks/ruby`     | `new rocks/ruby -- 💎`     | <code style="color: green">N rocks/ruby</code><br />&nbsp;&nbsp;text: `💎` |
+| `mkdir rocks` | `new rocks/` | <code style="color: green">N rocks/</code> |
+| `mkdir rocks`<br />`cd rocks` | `c rocks`[*](#change-directory-integration) | <code style="color: green">N rocks/</code><br />&nbsp;&nbsp;current working directory |
 | `mv rugby dogs` | `mov rugby dogs/`  | <code style="color: purple">M rugby -> dogs/rugby</code>  |
 | `mv rugby tennis`  | `mov rugby tennis`<br />`... [y/N]?` <kbd>Enter</kbd> | <code style="color: red">D tennis</code><br /><code style="color: purple">M rugby -> tennis</code> |
 | `rm -r dogs`<br />`mv cats dogs`  | `mov cats dogs`<br />`... [y/N]?` <kbd>Enter</kbd> | <code style="color: red">D dogs</code><br /><code style="color: purple">M cats -> dogs</code> |
