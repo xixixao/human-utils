@@ -31,6 +31,9 @@ pub struct Environment {
 }
 
 pub fn env(description: &[&str]) -> Result<Environment> {
+    // We stuck this in here since it's usually the first code in any test to run
+    colored::control::SHOULD_COLORIZE.set_override(true);
+
     let env = Environment {
         dir: tempfile::tempdir().context("Could not create temp dir")?,
         description: description.iter().map(|s| s.to_string()).collect(),
@@ -127,6 +130,7 @@ impl<'a> Runner<'a> {
                 .context("Failed to convert target path to canonical")?,
         )
         .args(self.args)
+        .env("CLICOLOR_FORCE", "1")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

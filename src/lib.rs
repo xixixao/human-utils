@@ -128,10 +128,14 @@ pub fn ask_for_multiple_paths<P: AsRef<Utf8Path>>(paths: &Vec<P>) {
 }
 
 fn print_path(path: &Utf8Path, metadata: &std::fs::Metadata) {
+    println!("{}", format_path(path, metadata));
+}
+
+pub fn format_path(path: &Utf8Path, metadata: &std::fs::Metadata) -> String {
     if metadata.is_dir() {
-        println!("{}", directory_path(path));
+        directory_path(path).to_string()
     } else {
-        println!("{}", path_string(path));
+        path_string(path)
     }
 }
 

@@ -85,9 +85,12 @@ fn main() {
         print_success(
             &options,
             &human_utils::directory_path(&path),
-            true,
-            false,
             None,
+            find_existing_ancestor_directory_for_printout(
+                &options,
+                &path,
+                &clashing_with_directories,
+            ),
         );
     }
 
@@ -100,13 +103,15 @@ fn main() {
     };
     for path in file_paths {
         human_utils::create_file(&options, &path, content.as_deref());
-        let clashing = clashing_with_files.get(&path);
         print_success(
             &options,
             &path,
-            clashing.map_or(true, |metadata| metadata.is_dir()),
-            clashing.map_or(false, |metadata| metadata.is_dir()),
-            None,
+            clashing_with_files.get(&path),
+            find_existing_ancestor_directory_for_printout(
+                &options,
+                &path,
+                &clashing_with_directories,
+            ),
         );
     }
     std::process::exit(SUCCESS);
@@ -117,15 +122,29 @@ fn delete_clashing(
     clashing_with_directories: &BTreeMap<Utf8PathBuf, std::fs::Metadata>,
     clashing_with_files: &BTreeMap<Utf8PathBuf, std::fs::Metadata>,
 ) {
-    if options.dry_run {
-        return;
-    }
-
-    for (path, _) in clashing_with_directories {
-        std::fs::remove_file(path).unwrap();
+    for (path, metadata) in clashing_with_directories {
+        if !metadata.is_dir() {
+            message_success!(
+                options,
+                "{}",
+                format!("D {}", human_utils::format_path(path, metadata)).bright_red()
+            );
+            if options.dry_run {
+                continue;
+            }
+            std::fs::remove_file(path).unwrap();
+        }
     }
     for (path, metadata) in clashing_with_files {
         if metadata.is_dir() {
+            message_success!(
+                options,
+                "{}",
+                format!("D {}", human_utils::format_path(path, metadata)).bright_red()
+            );
+            if options.dry_run {
+                continue;
+            }
             std::fs::remove_dir_all(path).unwrap();
         }
     }
@@ -214,7 +233,6 @@ fn check_conflicts(
         .filter_map(|path| {
             path.symlink_metadata()
                 .ok()
-                .filter(|metadata| !metadata.is_dir())
                 .map(|metadata| (path.clone(), metadata))
         })
         .collect::<BTreeMap<_, _>>();
@@ -234,7 +252,9 @@ fn check_conflicts(
 
     human_utils::ask_to_overwrite(
         &clashing_with_directories
-            .keys()
+            .iter()
+            .filter(|(_, metadata)| !metadata.is_dir())
+            .map(|(path, _)| path)
             .chain(
                 clashing_with_files
                     .iter()
@@ -247,26 +267,41 @@ fn check_conflicts(
     (clashing_with_directories, clashing_with_files)
 }
 
+pub fn find_existing_ancestor_directory_for_printout<'a>(
+    options: &StandardOptions,
+    path: &'a Utf8Path,
+    existing_ancestors: &BTreeMap<Utf8PathBuf, std::fs::Metadata>,
+) -> Option<&'a Utf8Path> {
+    if options.no_color {
+        return None;
+    }
+
+    let mut ancestor = path.parent();
+    while let Some(ancestor_path) = ancestor {
+        if existing_ancestors
+            .get(ancestor_path)
+            .map_or(false, |metadata| metadata.is_dir())
+        {
+            return Some(ancestor_path);
+        }
+        ancestor = ancestor_path.parent();
+    }
+    None
+}
+
 const COLOR: colored::Color = colored::Color::BrightGreen;
 
 fn print_success(
     options: &StandardOptions,
     created: &Utf8Path,
-    entirely_new: bool,
-    overwritten_directory: bool,
+    clashing: Option<&std::fs::Metadata>,
     existing_ancestor: Option<&Utf8Path>,
 ) {
-    if overwritten_directory {
-        message_success!(
-            options,
-            "{}",
-            format!("D {}", human_utils::directory_path(created)).bright_red()
-        );
-    }
+    let did_overwite_file = clashing.map_or(false, |metadata| !metadata.is_dir());
     message_success!(
         options,
         "{} {}",
-        (if entirely_new { "N" } else { "M" }).color(COLOR),
+        (if did_overwite_file { "M" } else { "N" }).color(COLOR),
         human_utils::color_new(created, existing_ancestor, COLOR)
     );
 }

@@ -15,7 +15,7 @@ fn prompts_to_erase_directory() -> Result<()> {
         res.output,
         format!(
             "{}\n{}",
-            format!("{} {}", "D".bright_red(), "a/".bright_red(),),
+            format!("{}", "D a/".bright_red(),),
             format!("{} {}", "N".bright_green(), "a".bright_green(),)
         )
     );
@@ -33,11 +33,29 @@ fn prompts_to_erase_nested_directory() -> Result<()> {
         res.output,
         format!(
             "{}\n{}",
-            format!("{} {}", "D".bright_red(), "a/b/".bright_red(),),
-            format!("{} {}", "N".bright_green(), "a/b".bright_green(),)
+            format!("{}", "D a/b/".bright_red(),),
+            format!("{} {}{}", "N".bright_green(), "a/", "b".bright_green(),)
         )
     );
     ensure!(res.code == SUCCESS);
     eq!(env.read("a/b")?, "");
+    Ok(())
+}
+
+#[test]
+fn prompts_to_erase_nested_file() -> Result<()> {
+    let env = env(&["a/b"])?;
+    let res = new().args(&["a/b/c"]).answer("y").env(&env).run()?;
+    eq!(res.prompt, "Overwrite file \"a/b\"? [Y/n]");
+    eq!(
+        res.output,
+        format!(
+            "{}\n{}",
+            format!("{}", "D a/b".bright_red(),),
+            format!("{} {}{}", "N".bright_green(), "a/", "b/c".bright_green(),)
+        )
+    );
+    ensure!(res.code == SUCCESS);
+    eq!(env.read("a/b/c")?, "");
     Ok(())
 }
