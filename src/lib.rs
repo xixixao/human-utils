@@ -2,7 +2,7 @@ mod lazy_path;
 
 pub use lazy_path::LazyPath;
 
-use std::{io::Write, ops::Deref};
+use std::io::Write;
 
 use camino::{Utf8Path, Utf8PathBuf};
 use colored::{ColoredString, Colorize};
