@@ -73,16 +73,22 @@ fn main() {
 
     check_argument_conflicts(&all_directory_paths, &file_paths);
 
-    let (clashing_directories, clashing_files) =
+    let (clashing_with_directories, clashing_with_files) =
         check_conflicts(&options, &all_directory_paths, &file_paths);
 
-    delete_clashing(&options, &clashing_directories, &clashing_files);
+    delete_clashing(&options, &clashing_with_directories, &clashing_with_files);
 
     for path in directory_paths {
         if !options.dry_run {
             std::fs::create_dir_all(&path).unwrap();
         }
-        print_success(&options, &human_utils::directory_path(&path), true, None);
+        print_success(
+            &options,
+            &human_utils::directory_path(&path),
+            true,
+            false,
+            None,
+        );
     }
 
     let content = if content.is_empty() {
@@ -94,24 +100,31 @@ fn main() {
     };
     for path in file_paths {
         human_utils::create_file(&options, &path, content.as_deref());
-        print_success(&options, &path, !clashing_files.contains_key(&path), None);
+        let clashing = clashing_with_files.get(&path);
+        print_success(
+            &options,
+            &path,
+            clashing.map_or(true, |metadata| metadata.is_dir()),
+            clashing.map_or(false, |metadata| metadata.is_dir()),
+            None,
+        );
     }
     std::process::exit(SUCCESS);
 }
 
 fn delete_clashing(
     options: &StandardOptions,
-    clashing_directories: &BTreeMap<Utf8PathBuf, std::fs::Metadata>,
-    clashing_files: &BTreeMap<Utf8PathBuf, std::fs::Metadata>,
+    clashing_with_directories: &BTreeMap<Utf8PathBuf, std::fs::Metadata>,
+    clashing_with_files: &BTreeMap<Utf8PathBuf, std::fs::Metadata>,
 ) {
     if options.dry_run {
         return;
     }
 
-    for (path, _) in clashing_directories {
+    for (path, _) in clashing_with_directories {
         std::fs::remove_file(path).unwrap();
     }
-    for (path, metadata) in clashing_files {
+    for (path, metadata) in clashing_with_files {
         if metadata.is_dir() {
             std::fs::remove_dir_all(path).unwrap();
         }
@@ -196,7 +209,7 @@ fn check_conflicts(
     BTreeMap<Utf8PathBuf, std::fs::Metadata>,
     BTreeMap<Utf8PathBuf, std::fs::Metadata>,
 ) {
-    let clashing_directories = all_directory_paths
+    let clashing_with_directories = all_directory_paths
         .iter()
         .filter_map(|path| {
             path.symlink_metadata()
@@ -206,7 +219,7 @@ fn check_conflicts(
         })
         .collect::<BTreeMap<_, _>>();
 
-    let clashing_files = file_paths
+    let clashing_with_files = file_paths
         .iter()
         .filter_map(|path| {
             path.symlink_metadata()
@@ -216,14 +229,14 @@ fn check_conflicts(
         .collect::<BTreeMap<_, _>>();
 
     if options.force {
-        return (clashing_directories, clashing_files);
+        return (clashing_with_directories, clashing_with_files);
     }
 
     human_utils::ask_to_overwrite(
-        &clashing_directories
+        &clashing_with_directories
             .keys()
             .chain(
-                clashing_files
+                clashing_with_files
                     .iter()
                     .filter(|(_, metadata)| metadata.is_dir() || metadata.len() > 0)
                     .map(|(path, _)| path),
@@ -231,7 +244,7 @@ fn check_conflicts(
             .collect(),
     );
 
-    (clashing_directories, clashing_files)
+    (clashing_with_directories, clashing_with_files)
 }
 
 const COLOR: colored::Color = colored::Color::BrightGreen;
@@ -240,8 +253,16 @@ fn print_success(
     options: &StandardOptions,
     created: &Utf8Path,
     entirely_new: bool,
+    overwritten_directory: bool,
     existing_ancestor: Option<&Utf8Path>,
 ) {
+    if overwritten_directory {
+        message_success!(
+            options,
+            "{}",
+            format!("D {}", human_utils::directory_path(created)).bright_red()
+        );
+    }
     message_success!(
         options,
         "{} {}",
