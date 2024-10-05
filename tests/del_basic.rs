@@ -8,7 +8,7 @@ use crate::utils::{del, env, SUCCESS};
 #[test]
 fn removes_file() -> Result<()> {
     let env = env(&["foo"])?;
-    let res = del().args(&["foo", "--color"]).answer("").env(&env).run()?;
+    let res = del().args(&["foo"]).answer("").env(&env).run()?;
     eq!(res.prompt, "Delete file \"foo\"? [Y/n]");
     eq!(res.output, "D foo".bright_red().to_string());
     ensure!(res.code == SUCCESS);
@@ -19,7 +19,7 @@ fn removes_file() -> Result<()> {
 #[test]
 fn removes_directory() -> Result<()> {
     let env = env(&["foo/lorem"])?;
-    let res = del().args(&["foo", "--color"]).answer("").env(&env).run()?;
+    let res = del().args(&["foo"]).answer("").env(&env).run()?;
     eq!(res.prompt, "Delete directory \"foo\"? [Y/n]");
     eq!(res.output, "D foo/".bright_red().to_string());
     ensure!(res.code == SUCCESS);

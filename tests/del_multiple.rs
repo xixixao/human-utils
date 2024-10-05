@@ -8,11 +8,7 @@ use crate::utils::{del, env, SUCCESS};
 #[test]
 fn removes_files() -> Result<()> {
     let env = env(&["foo", "bar"])?;
-    let res = del()
-        .args(&["foo", "bar", "--color"])
-        .answer("")
-        .env(&env)
-        .run()?;
+    let res = del().args(&["foo", "bar"]).answer("").env(&env).run()?;
     eq!(
         res.prompt,
         "For the following...\nfoo\nbar\n...delete all? [Y/n]"
@@ -31,11 +27,7 @@ fn removes_files() -> Result<()> {
 #[test]
 fn removes_directories() -> Result<()> {
     let env = env(&["foo/lorem", "bar/ipsum"])?;
-    let res = del()
-        .args(&["foo", "bar", "--color"])
-        .answer("")
-        .env(&env)
-        .run()?;
+    let res = del().args(&["foo", "bar"]).answer("").env(&env).run()?;
     eq!(
         res.prompt,
         "For the following...\nfoo/\nbar/\n...delete all? [Y/n]"

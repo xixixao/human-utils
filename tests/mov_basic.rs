@@ -8,7 +8,7 @@ use colored::Colorize;
 #[test]
 fn renames_file() -> Result<()> {
     let env = env(&["foo"])?;
-    let res = ren().args(&["foo", "bar", "--color"]).env(&env).run()?;
+    let res = ren().args(&["foo", "bar"]).env(&env).run()?;
     ensure!(
         res.output
             == format!(
@@ -27,7 +27,7 @@ fn renames_file() -> Result<()> {
 #[test]
 fn renames_directory() -> Result<()> {
     let env = env(&["foo/lorem"])?;
-    let res = ren().args(&["foo", "bar", "--color"]).env(&env).run()?;
+    let res = ren().args(&["foo", "bar"]).env(&env).run()?;
     ensure!(
         res.output
             == format!(
