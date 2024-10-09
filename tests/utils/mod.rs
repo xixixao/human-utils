@@ -79,8 +79,8 @@ impl Environment {
 }
 
 #[allow(dead_code)]
-pub fn ren() -> Runner<'static> {
-    Runner::new("target/debug/ren")
+pub fn mov() -> Runner<'static> {
+    Runner::new("target/debug/mov")
 }
 
 #[allow(dead_code)]

@@ -22,7 +22,7 @@ As part of `human-utils`, `new` asks for confirmation before\
 overwriting any file or directory.";
 
 const FILE_HELP: &str = const_format::formatcp!(
-    "Relative or absolute path of a file to create. Errors if FILE ends in {}",
+    "Melative or absolute path of a file to create. Errors if FILE ends in {}",
     std::path::MAIN_SEPARATOR
 );
 
@@ -313,7 +313,7 @@ fn print_success(
     message_success!(
         options,
         "{} {}",
-        (if did_overwite_file { "M" } else { "N" }).color(COLOR),
+        (if did_overwite_file { "E" } else { "N" }).color(COLOR),
         human_utils::color_new(created, existing_ancestor, COLOR)
     );
 }

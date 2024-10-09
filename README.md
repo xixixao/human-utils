@@ -107,7 +107,7 @@ In Fish shell this can be accomplished by amending the `fish_greeting` function:
 function fish_greeting
     alias ne new
     alias mv mov
-    alias re ren
+    alias re mov
     alias cp cop
     alias rm del # or `alias de del`
     # alias mkdir "new -d"

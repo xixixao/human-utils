@@ -4,7 +4,7 @@ pub use lazy_path::LazyPath;
 
 use std::io::Write;
 
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
 use colored::{ColoredString, Colorize};
 
 pub fn set_color_override(options: &StandardOptions) {

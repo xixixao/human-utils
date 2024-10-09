@@ -2,21 +2,21 @@ use anyhow::{ensure, Ok, Result};
 
 mod utils;
 
-use crate::utils::{env, ren, SUCCESS};
+use crate::utils::{env, mov, SUCCESS};
 use colored::Colorize;
 
 #[test]
 fn renames_file() -> Result<()> {
     let env = env(&["foo"])?;
-    let res = ren().args(&["foo", "bar"]).env(&env).run()?;
-    ensure!(
-        res.output
-            == format!(
-                "{} {} -> {}",
-                "R".bright_green(),
-                "foo".bright_red(),
-                "bar".bright_green()
-            )
+    let res = mov().args(&["foo", "bar"]).env(&env).run()?;
+    eq!(
+        res.output,
+        format!(
+            "{} {} -> {}",
+            "M".bright_green(),
+            "foo".bright_red(),
+            "bar".bright_green()
+        )
     );
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo"));
@@ -27,15 +27,15 @@ fn renames_file() -> Result<()> {
 #[test]
 fn renames_directory() -> Result<()> {
     let env = env(&["foo/lorem"])?;
-    let res = ren().args(&["foo", "bar"]).env(&env).run()?;
-    ensure!(
-        res.output
-            == format!(
-                "{} {} -> {}",
-                "R".bright_green(),
-                "foo".bright_red(),
-                "bar".bright_green()
-            )
+    let res = mov().args(&["foo", "bar"]).env(&env).run()?;
+    eq!(
+        res.output,
+        format!(
+            "{} {} -> {}",
+            "M".bright_green(),
+            "foo".bright_red(),
+            "bar".bright_green()
+        )
     );
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo/lorem"));

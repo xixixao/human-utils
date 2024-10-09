@@ -56,10 +56,14 @@ struct CLI {
     #[arg(help(DESTINATION_HELP))]
     destination_path: String,
 
+    // TODO: Consider renaming to --directory
+    // TODO: Change to option with argument
     /// Move files or directories into a directory at DESTINATION_PATH.
     #[arg(short, long)]
     move_into: bool,
 
+    // TODO: Consider renaming to --file
+    // TODO: Change to option with argument
     /// Rename and move one file or directory from SOURCE_PATH to DESTINATION_PATH.
     #[arg(short, long)]
     rename: bool,
@@ -85,8 +89,8 @@ fn main() {
         print_success_all(options, sources, paths_at_destination, existing_ancestor);
     } else {
         let source = only_one_source(args, sources);
-        check_source_exists(source);
-        check_source_already_at_destination(options, source, destination);
+        let canonical_source = check_source_exists(source);
+        check_source_already_at_destination(options, source, &canonical_source, destination);
         human_utils::check_path_exists_and_confirm_or_exit(options, destination);
         let existing_ancestor = human_utils::find_existing_ancestor_directory(options, destination);
         human_utils::create_parent_directory(options, destination);
@@ -96,6 +100,7 @@ fn main() {
     std::process::exit(SUCCESS);
 }
 
+// TODO: Redo via options
 fn only_one_source<'a>(args: &CLI, sources: &'a Vec<&'a Utf8Path>) -> &'a Utf8Path {
     if sources.len() != 1 {
         eprintln!(
@@ -121,9 +126,9 @@ fn check_sources_exists(sources: &Vec<&Utf8Path>) {
     }
 }
 
-fn check_source_exists(source: &Utf8Path) {
-    match source.symlink_metadata() {
-        Ok(_) => {}
+fn check_source_exists(source: &Utf8Path) -> Utf8PathBuf {
+    match source.canonicalize_utf8() {
+        Ok(source) => source,
         Err(error) => {
             eprintln!("Error for \"{}\": {}", source, error);
             std::process::exit(FAILURE);
@@ -160,18 +165,19 @@ fn check_sources_already_at_destination(
 fn check_source_already_at_destination(
     options: &StandardOptions,
     source: &Utf8Path,
+    canonical_source: &Utf8Path,
     destination: &Utf8Path,
 ) {
-    let source_canonical = source.canonicalize_utf8().unwrap();
-    let destination_canonical = destination.canonicalize_utf8().unwrap();
-    if source_canonical.eq(&destination_canonical) {
-        message_success!(
-            options,
-            "\"{}\" is already located at \"{}\"",
-            source,
-            destination
-        );
-        std::process::exit(SUCCESS);
+    if let Ok(canonical_destination) = destination.canonicalize_utf8() {
+        if canonical_source == canonical_destination {
+            message_success!(
+                options,
+                "\"{}\" is already located at \"{}\"",
+                source,
+                destination
+            );
+            std::process::exit(SUCCESS);
+        }
     }
 }
 
