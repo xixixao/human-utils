@@ -7,7 +7,7 @@ use human_utils::{message_success, path_string, StandardOptions, FAILURE, SUCCES
 
 const DETAILS: &str = "
 As part of `human-utils`, `mov` asks for confirmation if
-a file or directory already exists at <DESTINATION>.
+a file or directory already exists at <DESTINATION_PATH>.
 
 Examples where `mov` differs from `mv`:
 
@@ -40,14 +40,16 @@ Other improvements:
 
 const DESTINATION_HELP: &str = const_format::formatcp!(
     "The new path the moved files or directories should live at.
-To move the files or directories to a directory, end the DESTINATION_PATH in {} or use the -m option",
+To move the files or directories into a directory, end the DESTINATION_PATH in {} or use the -i option",
     std::path::MAIN_SEPARATOR
 );
+
+const USAGE: &str = "mov [OPTIONS] <SOURCE_PATHS>... <DESTINATION_PATH|--into <PATH>|--to <PATH>>";
 
 /// `mov`e files and directories
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
-#[clap(after_long_help = DETAILS)]
+#[clap(after_long_help = DETAILS, override_usage = USAGE)]
 struct CLI {
     /// The paths of the files or directories to be moved
     #[arg(required(true))]
@@ -56,17 +58,13 @@ struct CLI {
     #[arg(help(DESTINATION_HELP))]
     destination_path: String,
 
-    // TODO: Consider renaming to --directory
-    // TODO: Change to option with argument
     /// Move files or directories into a directory at DESTINATION_PATH.
     #[arg(short, long)]
-    move_into: bool,
+    into: bool,
 
-    // TODO: Consider renaming to --file
-    // TODO: Change to option with argument
     /// Rename and move one file or directory from SOURCE_PATH to DESTINATION_PATH.
     #[arg(short, long)]
-    rename: bool,
+    to: bool,
 
     #[command(flatten)]
     options: human_utils::StandardOptions,
@@ -78,7 +76,7 @@ fn main() {
     let sources: &Vec<_> = &args.source_paths.iter().map(Utf8Path::new).collect();
     let destination = Utf8Path::new(&args.destination_path);
     human_utils::set_color_override(&args.options);
-    if args.move_into || args.destination_path.ends_with(std::path::MAIN_SEPARATOR) {
+    if args.into || args.destination_path.ends_with(std::path::MAIN_SEPARATOR) {
         check_sources_exists(sources);
         check_sources_already_at_destination(options, sources, destination);
         let paths_at_destination = &get_paths_at_destination(sources, destination);
@@ -100,13 +98,12 @@ fn main() {
     std::process::exit(SUCCESS);
 }
 
-// TODO: Redo via options
 fn only_one_source<'a>(args: &CLI, sources: &'a Vec<&'a Utf8Path>) -> &'a Utf8Path {
     if sources.len() != 1 {
         eprintln!(
             "Error: Expected 1 SOURCE_PATH argument because {}, but got {}",
-            if args.move_into {
-                "the --move-into option was used".to_owned()
+            if args.into {
+                "the --into option was used".to_owned()
             } else {
                 format!(
                     "DESTINATION_PATH did not end with a {}",
