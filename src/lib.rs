@@ -4,7 +4,7 @@ pub use lazy_path::LazyPath;
 
 use std::io::Write;
 
-use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
+use camino::{Utf8Path, Utf8PathBuf};
 use colored::{ColoredString, Colorize};
 
 pub fn set_color_override(options: &StandardOptions) {
@@ -13,6 +13,21 @@ pub fn set_color_override(options: &StandardOptions) {
     } else if options.no_color {
         colored::control::set_override(false);
     }
+}
+
+pub fn find_existing_or_ancestor<'a>(
+    options: &StandardOptions,
+    path: &'a Utf8Path,
+) -> Option<&'a Utf8Path> {
+    if options.no_color {
+        return None;
+    }
+
+    if path.exists() {
+        return Some(path);
+    }
+
+    find_existing_ancestor_directory(options, path)
 }
 
 pub fn find_existing_ancestor_directory<'a>(
@@ -149,7 +164,9 @@ pub fn color_new(
         if let Some(existing_ancestor_path) = existing_ancestor {
             format!(
                 "{}{}{}",
-                existing_ancestor_path,
+                existing_ancestor_path
+                    .to_string()
+                    .trim_end_matches(std::path::MAIN_SEPARATOR),
                 std::path::MAIN_SEPARATOR,
                 strip_path_prefix(path, existing_ancestor_path).color(color)
             )

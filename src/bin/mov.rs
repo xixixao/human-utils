@@ -81,7 +81,7 @@ fn main() {
         check_sources_already_at_destination(options, sources, destination);
         let paths_at_destination = &get_paths_at_destination(sources, destination);
         human_utils::check_paths_exist_and_confirm_or_exit(options, paths_at_destination);
-        let existing_ancestor = human_utils::find_existing_ancestor_directory(options, destination);
+        let existing_ancestor = human_utils::find_existing_or_ancestor(options, destination);
         human_utils::create_directory(options, destination);
         rename_all(options, sources, paths_at_destination);
         print_success_all(options, sources, paths_at_destination, existing_ancestor);
@@ -138,24 +138,25 @@ fn check_sources_already_at_destination(
     sources: &Vec<&Utf8Path>,
     destination: &Utf8Path,
 ) {
-    let destination_canonical = destination.canonicalize_utf8().unwrap();
-    let mut all_sources_already_at_destination = true;
-    for source in sources {
-        let source_canonical = source.canonicalize_utf8().unwrap();
-        let source_parent = source_canonical.parent().unwrap();
-        if source_parent.eq(&destination_canonical) {
-            message_success!(
-                options,
-                "\"{}\" is already located at \"{}\"",
-                source,
-                human_utils::directory_path(destination)
-            );
-        } else {
-            all_sources_already_at_destination = false;
+    if let Ok(destination_canonical) = destination.canonicalize_utf8() {
+        let mut all_sources_already_at_destination = true;
+        for source in sources {
+            let source_canonical = source.canonicalize_utf8().unwrap();
+            let source_parent = source_canonical.parent().unwrap();
+            if source_parent.eq(&destination_canonical) {
+                message_success!(
+                    options,
+                    "\"{}\" is already located at \"{}\"",
+                    source,
+                    human_utils::directory_path(destination)
+                );
+            } else {
+                all_sources_already_at_destination = false;
+            }
         }
-    }
-    if all_sources_already_at_destination {
-        std::process::exit(SUCCESS);
+        if all_sources_already_at_destination {
+            std::process::exit(SUCCESS);
+        }
     }
 }
 
