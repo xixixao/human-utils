@@ -1,5 +1,5 @@
 use camino::{Utf8Path, Utf8PathBuf};
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use human_utils::{message_success, path_string, StandardOptions, FAILURE, SUCCESS};
 
@@ -50,7 +50,7 @@ const USAGE: &str = "mov [OPTIONS] <SOURCE_PATHS>... <DESTINATION_PATH|--into <P
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 #[clap(after_long_help = DETAILS, override_usage = USAGE)]
-struct CLI {
+struct HelpCLI {
     /// The paths of the files or directories to be moved
     #[arg(required(true))]
     source_paths: Vec<String>,
@@ -58,25 +58,62 @@ struct CLI {
     #[arg(help(DESTINATION_HELP))]
     destination_path: String,
 
-    /// Move files or directories into a directory at DESTINATION_PATH.
-    #[arg(short, long)]
-    into: bool,
+    /// Move files or directories into a directory at PATH.
+    #[arg(short, long, value_name = "PATH")]
+    into: Option<String>,
 
-    /// Rename and move one file or directory from SOURCE_PATH to DESTINATION_PATH.
-    #[arg(short, long)]
-    to: bool,
+    /// Rename and move one file or directory from SOURCE_PATH to PATH.
+    #[arg(short, long, value_name = "PATH")]
+    to: Option<String>,
 
     #[command(flatten)]
     options: human_utils::StandardOptions,
 }
 
+// Because of limitations of clap, we use a different definition
+// to actually parse the arguments.
+// See https://github.com/clap-rs/clap/discussions/5774
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+#[clap(disable_help_flag = true)]
+struct CLI {
+    #[arg()]
+    paths: Vec<String>,
+
+    #[arg(short, long, conflicts_with("to"))]
+    into: Option<String>,
+
+    #[arg(short, long, conflicts_with("into"))]
+    to: Option<String>,
+
+    #[command(flatten)]
+    options: human_utils::StandardOptions,
+
+    #[arg(short, long)]
+    help: bool,
+}
+
 fn main() {
+    let mut help_command = HelpCLI::command();
     let args = &CLI::parse();
+    let raw_args: Vec<String> = std::env::args().collect();
     let options = &args.options;
-    let sources: &Vec<_> = &args.source_paths.iter().map(Utf8Path::new).collect();
-    let destination = Utf8Path::new(&args.destination_path);
+
+    if args.help {
+        if raw_args.contains(&"-h".to_string()) {
+            help_command.print_help().unwrap();
+        } else {
+            help_command.print_long_help().unwrap();
+        }
+        std::process::exit(SUCCESS);
+    }
+
+    let (paths, into, to) = determine_destination_type(args);
+    at_least_one_source(&paths);
+    let sources: &Vec<_> = &paths.iter().map(Utf8Path::new).collect();
     human_utils::set_color_override(&args.options);
-    if args.into || args.destination_path.ends_with(std::path::MAIN_SEPARATOR) {
+    if let Some(destination) = into {
+        let destination = Utf8Path::new(&destination);
         check_sources_exists(sources);
         check_sources_already_at_destination(options, sources, destination);
         let paths_at_destination = &get_paths_at_destination(sources, destination);
@@ -86,6 +123,8 @@ fn main() {
         rename_all(options, sources, paths_at_destination);
         print_success_all(options, sources, paths_at_destination, existing_ancestor);
     } else {
+        let destination = to.unwrap();
+        let destination = Utf8Path::new(&destination);
         let source = only_one_source(args, sources);
         let canonical_source = check_source_exists(source);
         check_source_already_at_destination(options, source, &canonical_source, destination);
@@ -98,11 +137,44 @@ fn main() {
     std::process::exit(SUCCESS);
 }
 
+fn determine_destination_type(args: &CLI) -> (Vec<String>, Option<String>, Option<String>) {
+    let mut into = args.into.clone();
+    let mut to = args.to.clone();
+
+    if into.is_some() || to.is_some() {
+        return (args.paths.clone(), into, to);
+    }
+
+    // Split paths into sources and a destination
+    let mut paths = args.paths.clone();
+    let destination = paths.pop();
+
+    if let Some(destination) = destination {
+        if destination.ends_with(std::path::MAIN_SEPARATOR) {
+            into = Some(destination);
+        } else {
+            to = Some(destination);
+        }
+    } else {
+        eprintln!("Error: Expected either <DESTINATION_PATH> or --into PATH or --to PATH");
+        std::process::exit(FAILURE);
+    }
+
+    (paths, into, to)
+}
+
+fn at_least_one_source(paths: &Vec<String>) {
+    if paths.len() == 0 {
+        eprintln!("Error: Expected at least one SOURCE_PATH, got only a destination PATH");
+        std::process::exit(FAILURE);
+    }
+}
+
 fn only_one_source<'a>(args: &CLI, sources: &'a Vec<&'a Utf8Path>) -> &'a Utf8Path {
     if sources.len() != 1 {
         eprintln!(
             "Error: Expected 1 SOURCE_PATH argument because {}, but got {}",
-            if args.into {
+            if args.into.is_some() {
                 "the --into option was used".to_owned()
             } else {
                 format!(

@@ -8,7 +8,7 @@ use colored::Colorize;
 #[test]
 fn renames_file_via_to_option() -> Result<()> {
     let env = env(&["foo"])?;
-    let res = mov().args(&["--to", "foo", "bar"]).env(&env).run()?;
+    let res = mov().args(&["foo", "--to", "bar"]).env(&env).run()?;
     eq!(
         res.output,
         format!(
@@ -27,7 +27,7 @@ fn renames_file_via_to_option() -> Result<()> {
 #[test]
 fn renames_directory_via_to_option() -> Result<()> {
     let env = env(&["foo/lorem"])?;
-    let res = mov().args(&["--to", "foo", "bar"]).env(&env).run()?;
+    let res = mov().args(&["foo", "--to", "bar"]).env(&env).run()?;
     eq!(
         res.output,
         format!(
@@ -47,7 +47,7 @@ fn renames_directory_via_to_option() -> Result<()> {
 #[test]
 fn moves_into_directory_via_into_option() -> Result<()> {
     let env = env(&["foo/lorem", "bar"])?;
-    let res = mov().args(&["--into", "bar", "foo"]).env(&env).run()?;
+    let res = mov().args(&["bar", "--into", "foo"]).env(&env).run()?;
     eq!(
         res.output,
         format!(
