@@ -121,5 +121,6 @@ fn dir_replacing_dir() -> Result<()> {
     ensure!(res.code == SUCCESS);
     ensure!(!env.exists("foo"));
     ensure!(!env.exists("foo/baz"));
+    ensure!(!env.exists("bar/lorem"));
     Ok(())
 }

@@ -15,14 +15,14 @@ Basic examples:
   Create a directory:
     `new path/to/new_dir/`
 
-  Create a directory with 3 empty files:
+  Create a directory with 3 empty files (using shell expansion):
     `new path/to/new_dir/{a,b,c}`
 
 As part of `human-utils`, `new` asks for confirmation before\
 overwriting any file or directory.";
 
 const FILE_HELP: &str = const_format::formatcp!(
-    "Melative or absolute path of a file to create. Errors if FILE ends in {}",
+    "Relative or absolute path of a file to create. Errors if FILE ends in {}",
     std::path::MAIN_SEPARATOR
 );
 

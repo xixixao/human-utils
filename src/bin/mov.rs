@@ -12,29 +12,30 @@ a file or directory already exists at <DESTINATION_PATH>.
 Examples where `mov` differs from `mv`:
 
   Asks for confirmation:
-    `mov a b` where b is an existing file,
-    `mov` will ask for a confirmation and then
-    will replace `b` with `a`, while `mv`
-    will irreversibly replace `b` with `a`
-    without any confirmation.
+    A: `mov a b` where b is an existing file,
+       `mov` will ask for a confirmation and then
+       will replace `b` with `a`.
+    B: `mv a b` will irreversibly replace `b` with `a`
+       without any confirmation.
 
-  Always renames:
-    `mov a b` where b is an existing directory,
-    `mov` will ask for confirmation and then
-    will replace `b` with `a`, while `mv`
-    will move `a` into the directory `b`
+  Does not depend on the current state:
+    A: `mov a b` where b is an existing directory,
+       `mov` will ask for confirmation and then
+       will replace `b` with `a`.
+    B: `mv a b` will move `a` into the directory `b`
 
 Other improvements:
   
   Existing location:
-    `mov a a` will return success code 0,
-    while `mv` will return error code 1.
+    A: `mov a a` will return success code 0.
+    B: `mv` will return error code 1.
 
   Existing location with different path format:
-    `mov a /foo/a` where `a` is already located at `/foo/a`,
-    `mov` will note that `a` is already located at `/foo/a`
-    and return success code 0, while `mv` will consider this
-    a valid move and `mv -i` will ask for confirmation.
+    A: `mov a /foo/a` where `a` is already located at `/foo/a`,
+       `mov` will note that `a` is already located there
+       and return success code 0.
+    B: `mv` will consider this a valid move and `mv -i` will
+        ask for confirmation.
 
 ";
 
