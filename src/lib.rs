@@ -2,7 +2,7 @@ mod lazy_path;
 
 pub use lazy_path::LazyPath;
 
-use std::io::Write;
+use std::{borrow::Cow, io::Write};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use colored::{ColoredString, Colorize};
@@ -15,7 +15,7 @@ pub fn set_color_override(options: &StandardOptions) {
     }
 }
 
-pub fn find_existing_or_ancestor<'a>(
+pub fn find_existing_or_ancestor_for_print<'a>(
     options: &StandardOptions,
     path: &'a Utf8Path,
 ) -> Option<&'a Utf8Path> {
@@ -27,10 +27,10 @@ pub fn find_existing_or_ancestor<'a>(
         return Some(path);
     }
 
-    find_existing_ancestor_directory(options, path)
+    find_existing_ancestor_directory(path)
 }
 
-pub fn find_existing_ancestor_directory<'a>(
+pub fn find_existing_ancestor_directory_for_print<'a>(
     options: &StandardOptions,
     path: &'a Utf8Path,
 ) -> Option<&'a Utf8Path> {
@@ -38,6 +38,10 @@ pub fn find_existing_ancestor_directory<'a>(
         return None;
     }
 
+    find_existing_ancestor_directory(path)
+}
+
+pub fn find_existing_ancestor_directory<'a>(path: &'a Utf8Path) -> Option<&'a Utf8Path> {
     let mut ancestor = path.parent();
     while let Some(ancestor_path) = ancestor {
         if ancestor_path.exists() {
@@ -46,6 +50,64 @@ pub fn find_existing_ancestor_directory<'a>(
         ancestor = ancestor_path.parent();
     }
     None
+}
+
+pub fn get_cwd() -> std::path::PathBuf {
+    std::env::current_dir().unwrap()
+}
+
+pub fn handle_cwd<'a, 'b>(path: &'a Utf8Path) -> Cow<'a, Utf8Path> {
+    let path = normalize_path(path);
+
+    if path.as_str() == "." || path.as_str() == ".." {
+        Cow::Owned(path.canonicalize_utf8().unwrap())
+    } else {
+        path
+    }
+}
+
+fn normalize_path(path: &Utf8Path) -> Cow<Utf8Path> {
+    let mut new_components = Vec::new();
+
+    let mut num_old_components = 0;
+    for comp in path.components() {
+        num_old_components += 1;
+        match comp {
+            camino::Utf8Component::CurDir => {
+                if new_components.is_empty() {
+                    new_components.push(comp);
+                }
+            }
+            camino::Utf8Component::ParentDir => {
+                if let Some(last) = new_components.last() {
+                    match last {
+                        camino::Utf8Component::ParentDir => {
+                            new_components.push(comp);
+                        }
+                        camino::Utf8Component::CurDir => {
+                            new_components.pop();
+                            new_components.push(comp);
+                        }
+                        _ => {
+                            new_components.pop();
+                        }
+                    }
+                } else {
+                    new_components.push(comp);
+                }
+            }
+            camino::Utf8Component::Normal(_)
+            | camino::Utf8Component::RootDir
+            | camino::Utf8Component::Prefix(_) => {
+                new_components.push(comp);
+            }
+        }
+    }
+    if new_components.len() == num_old_components {
+        Cow::Borrowed(path)
+    } else {
+        Cow::Owned(new_components.into_iter().collect())
+    }
 }
 
 pub fn create_directory(options: &StandardOptions, path: &Utf8Path) {

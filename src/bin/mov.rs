@@ -87,6 +87,9 @@ struct CLI {
     #[arg(short, long, conflicts_with("into"))]
     to: Option<String>,
 
+    #[arg(long)]
+    track_cwd_change: Option<String>,
+
     #[command(flatten)]
     options: human_utils::StandardOptions,
 
@@ -119,9 +122,12 @@ fn main() {
         check_sources_already_at_destination(options, sources, destination);
         let paths_at_destination = &get_paths_at_destination(sources, destination);
         human_utils::check_paths_exist_and_confirm_or_exit(options, paths_at_destination);
-        let existing_ancestor = human_utils::find_existing_or_ancestor(options, destination);
+        let existing_ancestor =
+            human_utils::find_existing_or_ancestor_for_print(options, destination);
         human_utils::create_directory(options, destination);
+        let original_cwd = human_utils::get_cwd();
         rename_all(options, sources, paths_at_destination);
+        track_cwd_change(args, original_cwd);
         print_success_all(options, sources, paths_at_destination, existing_ancestor);
     } else {
         let destination = to.unwrap();
@@ -130,11 +136,15 @@ fn main() {
         let canonical_source = check_source_exists(source);
         check_source_already_at_destination(options, source, &canonical_source, destination);
         human_utils::check_path_exists_and_confirm_or_exit(options, destination);
-        let existing_ancestor = human_utils::find_existing_ancestor_directory(options, destination);
+        let existing_ancestor =
+            human_utils::find_existing_ancestor_directory_for_print(options, destination);
         human_utils::create_parent_directory(options, destination);
+        let original_cwd = human_utils::get_cwd();
         rename(options, source, destination);
+        track_cwd_change(args, original_cwd);
         print_success(options, source, destination, existing_ancestor);
     }
+
     std::process::exit(SUCCESS);
 }
 
@@ -282,6 +292,9 @@ fn rename(options: &StandardOptions, from: &Utf8Path, to: &Utf8Path) {
         return;
     }
 
+    let from = human_utils::handle_cwd(from);
+    let from = from.as_ref();
+
     if std::fs::rename(from, to).is_err() {
         if to.exists() {
             if to.is_dir() {
@@ -321,4 +334,13 @@ fn print_success(
         path_string(source).bright_red(),
         human_utils::color_new(destination, existing_ancestor, COLOR)
     );
+}
+
+fn track_cwd_change(args: &CLI, original_cwd: std::path::PathBuf) {
+    let new_cwd = human_utils::get_cwd();
+    if let Some(tracking_file_path) = args.track_cwd_change.as_ref() {
+        if original_cwd != new_cwd {
+            std::fs::write(tracking_file_path, new_cwd.to_str().unwrap()).unwrap();
+        }
+    }
 }

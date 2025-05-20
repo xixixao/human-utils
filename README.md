@@ -136,20 +136,33 @@ end
 
 ## Shell integration
 
-These commands can change the state of your file system. They are built to be used from an interactive shell. Virtually all popular shells have the concept of the "current working directory" - the directory from which you're executing a command. Yet in most shells, commands cannot change the working directory. For this reason, there's one command invocation that requires a shell integration:
+These commands can change the state of your file system. They are built to be used from an interactive shell. Interactive shells have the concept of the "current working directory" - the directory from which you're executing a command. Yet in most shells, commands cannot change the working directory. For this reason, there are two command invocations that require a shell integration:
 
-`mov . /some/where/else`
+1. `mov . /some/where/else` - In this case we would obviously want the current working directory to follow the move.
+2. `del .` - In this case we would like the working directory to move up the file tree.
 
-In this case we would obviously want the current working directory to follow the move.
+Both scenarios must work when the first argument points to any ancestor of the current working directory.
 
-This can be achieved with the `mov --track-cwd-change <file_path>` option, like this:
+This can be achieved with the `--track-cwd-change <file_path>` option, like this:
 
 ```fish
 function mv -w mov
-    mov --track-cwd-change /tmp/__mov_cwd_change__ $argv
-    if test -f /tmp/__mov_cwd_change__
-        cd (cat /tmp/__mov_cwd_change__)
-        rm /tmp/__mov_cwd_change__
+    set tracking_file /tmp/__mov_cwd_change__
+    mov --track-cwd-change $tracking_file $argv
+    if test -f $tracking_file
+        set new_cwd (cat $tracking_file)
+        /bin/rm $tracking_file
+        cd $new_cwd
+    end
+end
+
+function rm -w del
+    set tracking_file /tmp/__del_cwd_change__
+    del --track-cwd-change $tracking_file $argv
+    if test -f $tracking_file
+        set new_cwd (cat $tracking_file)
+        /bin/rm $tracking_file
+        cd $new_cwd
     end
 end
 ```

@@ -40,19 +40,24 @@ struct CLI {
     #[arg(required(true))]
     file_or_directory: Vec<String>,
 
+    #[arg(long, hide = true)]
+    track_cwd_change: Option<String>,
+
     #[command(flatten)]
     options: StandardOptions,
 }
 
 fn main() {
-    let CLI {
-        file_or_directory,
-        options,
-    } = CLI::parse();
-    let paths: Vec<&Utf8Path> = file_or_directory.iter().map(Utf8Path::new).collect();
-    human_utils::set_color_override(&options);
-    ask_to_confirm(&options, &paths);
-    let all_removed = remove(&options, &paths);
+    let args = &CLI::parse();
+    let options = &args.options;
+
+    let paths: Vec<&Utf8Path> = args.file_or_directory.iter().map(Utf8Path::new).collect();
+    human_utils::set_color_override(options);
+    ask_to_confirm(options, &paths);
+    let original_cwd = human_utils::get_cwd();
+    let all_removed = remove_all(options, &paths);
+    track_cwd_change(args, original_cwd);
+
     std::process::exit(if all_removed { SUCCESS } else { FAILURE });
 }
 
@@ -133,14 +138,14 @@ fn print_path(path: &Utf8Path, metadata: &std::io::Result<std::fs::Metadata>) {
 }
 
 // #[tested(TODO)]
-fn remove(options: &StandardOptions, paths: &Vec<&Utf8Path>) -> bool {
+fn remove_all(options: &StandardOptions, paths: &Vec<&Utf8Path>) -> bool {
     let mut all_removed = true;
     for path in paths {
         let removed = if let Ok(metadata) = path.symlink_metadata() {
             if metadata.is_dir() {
-                remove_dir(options, path)
+                remove_dir(options, &path)
             } else {
-                remove_file(options, path)
+                remove_file(options, &path)
             }
         } else {
             // Consider non-existing files and directories as removed
@@ -155,6 +160,8 @@ fn remove(options: &StandardOptions, paths: &Vec<&Utf8Path>) -> bool {
 
 fn remove_dir(options: &StandardOptions, path: &Utf8Path) -> bool {
     if !options.dry_run {
+        let path = human_utils::handle_cwd(path);
+        let path = path.as_ref();
         // #[tested(rem_basic)]
         if let Err(error) = std::fs::remove_dir_all(path) {
             // #[tested(TODO)]
@@ -185,4 +192,18 @@ fn remove_file(options: &StandardOptions, path: &Utf8Path) -> bool {
         format!("D {}", path_string(path)).bright_red()
     );
     true
+}
+
+fn track_cwd_change(args: &CLI, original_cwd: std::path::PathBuf) {
+    if let Some(tracking_file_path) = args.track_cwd_change.as_ref() {
+        let new_cwd = std::env::current_dir();
+        if new_cwd.is_err() {
+            let ancestor = human_utils::find_existing_ancestor_directory(
+                Utf8Path::from_path(&original_cwd).unwrap(),
+            );
+            if let Some(new_cwd) = ancestor {
+                std::fs::write(tracking_file_path, new_cwd.as_str()).unwrap();
+            }
+        }
+    }
 }
